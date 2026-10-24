@@ -146,7 +146,10 @@ Friend Module ModSecret
 #Region "更新"
 
     'PCLFE 自更新配置：版本信息从仓库根目录的 version.json 读取，更新包为 GitHub Release 中的启动器 exe。
-    Private Const UpdateVersionUrl As String = "https://raw.githubusercontent.com/FireWaterDog/Plain-Craft-Launcher-FireWaterDog-Edition/main/version.json"
+    '国内直连 raw.githubusercontent.com 常不可达，故优先走 jsDelivr CDN，失败后回退官方源。
+    Private Const UpdateRepo As String = "FireWaterDog/Plain-Craft-Launcher-FireWaterDog-Edition"
+    Private Const UpdateVersionUrlJsdelivr As String = "https://cdn.jsdelivr.net/gh/" & UpdateRepo & "@main/version.json"
+    Private Const UpdateVersionUrlRaw As String = "https://raw.githubusercontent.com/" & UpdateRepo & "/main/version.json"
 
     Friend IsUpdateWaitingRestart As Boolean = False
 
@@ -175,7 +178,23 @@ Friend Module ModSecret
     ''' </summary>
     Private Sub CheckUpdate(ShowNoUpdateHint As Boolean)
         Try
-            Dim Raw As String = NetRequestByClientRetry(UpdateVersionUrl, RequireJson:=True)
+            '依次尝试多个更新源（jsDelivr CDN → GitHub 官方源）
+            Dim Raw As String = Nothing
+            Dim LastError As Exception = Nothing
+            For Each VersionUrl In {UpdateVersionUrlJsdelivr, UpdateVersionUrlRaw}
+                Try
+                    Raw = NetRequestByClient(VersionUrl, RequireJson:=True)
+                    If Not String.IsNullOrWhiteSpace(Raw) Then Exit For
+                Catch FetchEx As Exception
+                    LastError = FetchEx
+                    Logger.Warn(FetchEx, $"获取版本信息失败（{VersionUrl}），尝试下一个源")
+                    Raw = Nothing
+                End Try
+            Next
+            If String.IsNullOrWhiteSpace(Raw) Then
+                If LastError IsNot Nothing Then Throw LastError
+                Throw New Exception("所有更新源均未返回版本信息")
+            End If
             Dim Info As JObject = Raw.DeserializeJson()
             If Info Is Nothing OrElse Info("versionCode") Is Nothing Then
                 If ShowNoUpdateHint Then RunInUi(Sub() Hint("检查更新失败：版本信息格式错误。", HintType.Red, False))
@@ -214,7 +233,28 @@ Friend Module ModSecret
                         Try
                             Dim TempExe As String = PathTemp & "Update\PCLFE-New.exe"
                             Try : System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(TempExe)) : Catch : End Try
-                            NetDownloadByClient(Url, TempExe)
+                            '依次尝试多个下载源（原始地址 → GitHub 加速镜像）
+                            Dim DownloadUrls As New List(Of String) From {Url}
+                            If Url.Contains("github.com") OrElse Url.Contains("githubusercontent.com") Then
+                                DownloadUrls.Add("https://mirror.ghproxy.com/" & Url)
+                                DownloadUrls.Add("https://ghfast.top/" & Url)
+                            End If
+                            Dim DownloadError As Exception = Nothing
+                            Dim Downloaded As Boolean = False
+                            For Each DownloadUrl In DownloadUrls
+                                Try
+                                    NetDownloadByClient(DownloadUrl, TempExe)
+                                    Downloaded = True
+                                    Exit For
+                                Catch DownloadEx As Exception
+                                    DownloadError = DownloadEx
+                                    Logger.Warn(DownloadEx, $"下载更新失败（{DownloadUrl}），尝试下一个源")
+                                End Try
+                            Next
+                            If Not Downloaded Then
+                                If DownloadError IsNot Nothing Then Throw DownloadError
+                                Throw New Exception("所有下载源均失败")
+                            End If
                             RunInUi(Sub() Hint("更新已下载，正在重启以完成更新…", HintType.Green, False))
                             System.Threading.Thread.Sleep(800)
                             ApplyUpdate(TempExe)
