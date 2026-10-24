@@ -145,14 +145,111 @@ Friend Module ModSecret
 
 #Region "更新"
 
-    Friend Sub UpdateCheckByButton()
-        Hint("该版本中不包含更新功能……")
-    End Sub
+    'PCLFE 自更新配置：版本信息从仓库根目录的 version.json 读取，更新包为 GitHub Release 中的启动器 exe。
+    Private Const UpdateVersionUrl As String = "https://raw.githubusercontent.com/FireWaterDog/Plain-Craft-Launcher-FireWaterDog-Edition/main/version.json"
 
     Friend IsUpdateWaitingRestart As Boolean = False
-    Public Sub UpdateRestart(TriggerRestartAndByEnd As Boolean)
+
+    ''' <summary>
+    ''' 「设置 → 其他 → 检查更新」按钮触发：立即检查并提示。
+    ''' </summary>
+    Friend Sub UpdateCheckByButton()
+        RunInThread(Sub() CheckUpdate(True))
     End Sub
+
+    ''' <summary>
+    ''' 启动后后台检查：发现有新版本时弹窗提示，由用户手动确认下载。
+    ''' </summary>
+    Friend Sub UpdateCheckAuto()
+        RunInNewThread(Sub()
+            Try
+                System.Threading.Thread.Sleep(15000) '启动后稍等，避免打断初始化
+            Catch
+            End Try
+            CheckUpdate(False)
+        End Sub, "UpdateCheckAuto", ThreadPriority.BelowNormal)
+    End Sub
+
+    ''' <summary>
+    ''' 读取 version.json 并与当前版本比较，若有更新则弹窗提示。
+    ''' </summary>
+    Private Sub CheckUpdate(ShowNoUpdateHint As Boolean)
+        Try
+            Dim Raw As String = NetRequestByClientRetry(UpdateVersionUrl, RequireJson:=True)
+            Dim Info As JObject = Raw.DeserializeJson()
+            If Info Is Nothing OrElse Info("versionCode") Is Nothing Then
+                If ShowNoUpdateHint Then RunInUi(Sub() Hint("检查更新失败：版本信息格式错误。", HintType.Red, False))
+                Return
+            End If
+            Dim LatestCode As Integer = Info("versionCode").ToObject(Of Integer)
+            If LatestCode <= VersionCode Then
+                If ShowNoUpdateHint Then RunInUi(Sub() Hint($"已是最新版本（{VersionDisplay}）", HintType.Finish, False))
+                Return
+            End If
+            Dim VersionName As String = If(Info("versionName") IsNot Nothing, Info("versionName").ToString, LatestCode.ToString)
+            Dim Changelog As String = If(Info("changelog") IsNot Nothing, Info("changelog").ToString, "")
+            RunInUi(Sub()
+                Dim Msg As String = $"发现新版本：{VersionName}{vbCrLf}{vbCrLf}{If(Changelog = "", "（未提供更新说明）", Changelog)}"
+                If MyMsgBox(Msg, "PCLFE 更新", "下载并更新", "取消", IsWarn:=False) = 1 Then
+                    UpdateDownloadAndApply(Info)
+                End If
+            End Sub)
+        Catch ex As Exception
+            Logger.Warn(ex, "检查 PCLFE 更新失败")
+            If ShowNoUpdateHint Then RunInUi(Sub() Hint("检查更新失败：" & ex.Message, HintType.Red, False))
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 下载更新包（启动器 exe）到临时目录，完成后替换自身并重启。
+    ''' </summary>
+    Private Sub UpdateDownloadAndApply(Info As JObject)
+        Dim Url As String = If(Info("downloadUrl") IsNot Nothing, Info("downloadUrl").ToString, "")
+        If String.IsNullOrEmpty(Url) Then
+            RunInUi(Sub() Hint("更新包下载地址为空，无法更新。", HintType.Red, False))
+            Return
+        End If
+        RunInUi(Sub() Hint("正在下载 PCLFE 更新…", HintType.Info, False))
+        RunInThread(Sub()
+            Try
+                Dim TempExe As String = PathTemp & "Update\PCLFE-New.exe"
+                Try : System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(TempExe)) : Catch : End Try
+                NetDownloadByClient(Url, TempExe)
+                RunInUi(Sub() Hint("更新已下载，正在重启以完成更新…", HintType.Finish, False))
+                System.Threading.Thread.Sleep(800)
+                ApplyUpdate(TempExe)
+            Catch ex As Exception
+                Logger.Warn(ex, "下载或应用 PCLFE 更新失败")
+                RunInUi(Sub() Hint("更新失败：" & ex.Message, HintType.Red, False))
+            End Try
+        End Sub)
+    End Sub
+
+    ''' <summary>
+    ''' 用下载好的新 exe 替换正在运行的启动器并重启。
+    ''' Windows 允许重命名正在运行的 exe，因此先重命名旧文件再写入新文件，规避文件占用。
+    ''' </summary>
+    Private Sub ApplyUpdate(TempExe As String)
+        Dim CurrentExe As String = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName
+        Dim Backup As String = CurrentExe & ".bak"
+        If System.IO.File.Exists(Backup) Then
+            Try : System.IO.File.Delete(Backup) : Catch : End Try
+        End If
+        System.IO.File.Move(CurrentExe, Backup)
+        System.IO.File.Copy(TempExe, CurrentExe, True)
+        Try : System.Diagnostics.Process.Start(CurrentExe) : Catch : End Try
+        Environment.Exit(0)
+    End Sub
+
+    Public Sub UpdateRestart(TriggerRestartAndByEnd As Boolean)
+        If Not TriggerRestartAndByEnd Then Return
+        Dim CurrentExe As String = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName
+        Try : System.Diagnostics.Process.Start(CurrentExe) : Catch ex As Exception : Logger.Warn(ex, "更新重启失败") : End Try
+        Environment.Exit(0)
+    End Sub
+
     Public Sub UpdateReplace(ProcessId As Integer, OldFileName As String, NewFileName As String, TriggerRestart As Boolean)
+        'PCLFE 采用整包 exe 替换方式，无需此增量替换流程，保留接口以兼容引用。
     End Sub
 
     ''' <summary>
