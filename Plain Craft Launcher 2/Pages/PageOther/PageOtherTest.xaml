@@ -7,6 +7,47 @@
     xmlns:sys="clr-namespace:System;assembly=mscorlib"
     PanScroll="PanBack">
     <local:MyScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" x:Name="PanBack">
-        <TextBlock Text="为便于维护，开源内容中不包含百宝箱功能……" HorizontalAlignment="Center" FontSize="15" Height="30" VerticalAlignment="Center" />
+        <StackPanel x:Name="PanMain" Margin="25,10">
+            <local:MyCard Margin="0,15" Title="实用工具">
+                <Grid Margin="21,40,21,16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="45" />
+                        <RowDefinition Height="45" />
+                        <RowDefinition Height="45" />
+                        <RowDefinition Height="45" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="150" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" TextWrapping="Wrap" LineHeight="17"
+                               Text="释放被占用的内存，让启动器运行更流畅（不会关闭任何游戏）。" />
+                    <local:MyButton Grid.Row="0" Grid.Column="1" Text="内存优化" Height="35" x:Name="BtnMemory" />
+                    <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" TextWrapping="Wrap" LineHeight="17"
+                               Text="清理启动器的临时文件与缓存，不会删除任何游戏存档或设置。" />
+                    <local:MyButton Grid.Row="1" Grid.Column="1" Text="垃圾清理" Height="35" x:Name="BtnRubbish" />
+                    <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" TextWrapping="Wrap" LineHeight="17"
+                               Text="输入任意网址，将文件下载到本地（需以 http:// 或 https:// 开头）。" />
+                    <local:MyButton Grid.Row="2" Grid.Column="1" Text="自定义下载" Height="35" x:Name="BtnDownload" />
+                    <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" TextWrapping="Wrap" LineHeight="17"
+                               Text="一个隐藏的彩蛋：让整个启动器变成彩虹色，并循环播放音乐。" />
+                    <local:MyButton Grid.Row="3" Grid.Column="1" Text="通透模式" Height="35" x:Name="BtnTongTou" />
+                </Grid>
+            </local:MyCard>
+            <local:MyCard Margin="0,0,0,15" Title="趣味">
+                <Grid Margin="21,40,21,16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="45" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="150" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" TextWrapping="Wrap" LineHeight="17"
+                               Text="测测你今天的人品值，看看今天是不是欧皇附体~" />
+                    <local:MyButton Grid.Row="0" Grid.Column="1" Text="今日人品" Height="35" x:Name="BtnJrrp" />
+                </Grid>
+            </local:MyCard>
+        </StackPanel>
     </local:MyScrollViewer>
 </local:MyPageRight>
