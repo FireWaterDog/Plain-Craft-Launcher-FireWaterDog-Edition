@@ -145,11 +145,9 @@ Friend Module ModSecret
 
 #Region "更新"
 
-    'PCLFE 自更新配置：版本信息从仓库根目录的 version.json 读取，更新包为仓库内的启动器 exe。
-    '国内直连 GitHub 常不可达，故版本信息优先走 jsDelivr CDN 回退官方源；更新包本身也直接由 jsDelivr CDN 提供下载。
+    'PCLFE 自更新配置：版本信息从仓库根目录的 version.json 读取，更新包为 GitHub Release 中的启动器 exe。
+    '国内直连 raw.githubusercontent.com 常不可达，故优先走 jsDelivr CDN，失败后回退官方源。
     Private Const UpdateRepo As String = "FireWaterDog/Plain-Craft-Launcher-FireWaterDog-Edition"
-    '更新包（启动器 exe）存放在仓库内的此相对路径，随发版提交，通过 jsDelivr CDN 下载。
-    Private Const UpdateExePath As String = "release/Plain.Craft.Launcher.2.exe"
     Private Const UpdateVersionUrlJsdelivr As String = "https://cdn.jsdelivr.net/gh/" & UpdateRepo & "@main/version.json"
     Private Const UpdateVersionUrlRaw As String = "https://raw.githubusercontent.com/" & UpdateRepo & "/main/version.json"
 
@@ -225,8 +223,8 @@ Friend Module ModSecret
     ''' 下载更新包（启动器 exe）到临时目录，完成后替换自身并重启。
     ''' </summary>
     Private Sub UpdateDownloadAndApply(Info As JObject)
-        Dim BaseUrl As String = If(Info("downloadUrl") IsNot Nothing, Info("downloadUrl").ToString, "")
-        If String.IsNullOrEmpty(BaseUrl) Then
+        Dim Url As String = If(Info("downloadUrl") IsNot Nothing, Info("downloadUrl").ToString, "")
+        If String.IsNullOrEmpty(Url) Then
             RunInUi(Sub() Hint("更新包下载地址为空，无法更新。", HintType.Red, False))
             Return
         End If
@@ -235,11 +233,12 @@ Friend Module ModSecret
                         Try
                             Dim TempExe As String = PathTemp & "Update\PCLFE-New.exe"
                             Try : System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(TempExe)) : Catch : End Try
-                            '依次尝试多个下载源：jsDelivr(来自 version.json) → ghproxy 代理的 raw 源兜底
-                            Dim RawExeUrl As String = "https://raw.githubusercontent.com/" & UpdateRepo & "/main/" & UpdateExePath
-                            Dim DownloadUrls As New List(Of String) From {BaseUrl,
-                                "https://mirror.ghproxy.com/" & RawExeUrl,
-                                "https://ghfast.top/" & RawExeUrl}
+                            '依次尝试多个下载源（原始地址 → GitHub 加速镜像）
+                            Dim DownloadUrls As New List(Of String) From {Url}
+                            If Url.Contains("github.com") OrElse Url.Contains("githubusercontent.com") Then
+                                DownloadUrls.Add("https://mirror.ghproxy.com/" & Url)
+                                DownloadUrls.Add("https://ghfast.top/" & Url)
+                            End If
                             Dim DownloadError As Exception = Nothing
                             Dim Downloaded As Boolean = False
                             For Each DownloadUrl In DownloadUrls
