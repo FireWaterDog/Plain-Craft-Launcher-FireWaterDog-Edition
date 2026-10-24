@@ -162,12 +162,12 @@ Friend Module ModSecret
     ''' </summary>
     Friend Sub UpdateCheckAuto()
         RunInNewThread(Sub()
-            Try
-                System.Threading.Thread.Sleep(15000) '启动后稍等，避免打断初始化
-            Catch
-            End Try
-            CheckUpdate(False)
-        End Sub, "UpdateCheckAuto", ThreadPriority.BelowNormal)
+                           Try
+                               System.Threading.Thread.Sleep(15000) '启动后稍等，避免打断初始化
+                           Catch
+                           End Try
+                           CheckUpdate(False)
+                       End Sub, "UpdateCheckAuto", ThreadPriority.BelowNormal)
     End Sub
 
     ''' <summary>
@@ -183,17 +183,17 @@ Friend Module ModSecret
             End If
             Dim LatestCode As Integer = Info("versionCode").ToObject(Of Integer)
             If LatestCode <= VersionCode Then
-                If ShowNoUpdateHint Then RunInUi(Sub() Hint($"已是最新版本（{VersionDisplay}）", HintType.Finish, False))
+                If ShowNoUpdateHint Then RunInUi(Sub() Hint($"已是最新版本（{VersionDisplay}）", HintType.Green, False))
                 Return
             End If
             Dim VersionName As String = If(Info("versionName") IsNot Nothing, Info("versionName").ToString, LatestCode.ToString)
             Dim Changelog As String = If(Info("changelog") IsNot Nothing, Info("changelog").ToString, "")
             RunInUi(Sub()
-                Dim Msg As String = $"发现新版本：{VersionName}{vbCrLf}{vbCrLf}{If(Changelog = "", "（未提供更新说明）", Changelog)}"
-                If MyMsgBox(Msg, "PCLFE 更新", "下载并更新", "取消", IsWarn:=False) = 1 Then
-                    UpdateDownloadAndApply(Info)
-                End If
-            End Sub)
+                        Dim Msg As String = $"发现新版本：{VersionName}{vbCrLf}{vbCrLf}{If(Changelog = "", "（未提供更新说明）", Changelog)}"
+                        If MyMsgBox(Msg, "PCLFE 更新", "下载并更新", "取消", IsWarn:=False) = 1 Then
+                            UpdateDownloadAndApply(Info)
+                        End If
+                    End Sub)
         Catch ex As Exception
             Logger.Warn(ex, "检查 PCLFE 更新失败")
             If ShowNoUpdateHint Then RunInUi(Sub() Hint("检查更新失败：" & ex.Message, HintType.Red, False))
@@ -209,20 +209,20 @@ Friend Module ModSecret
             RunInUi(Sub() Hint("更新包下载地址为空，无法更新。", HintType.Red, False))
             Return
         End If
-        RunInUi(Sub() Hint("正在下载 PCLFE 更新…", HintType.Info, False))
+        RunInUi(Sub() Hint("正在下载 PCLFE 更新…", HintType.Blue, False))
         RunInThread(Sub()
-            Try
-                Dim TempExe As String = PathTemp & "Update\PCLFE-New.exe"
-                Try : System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(TempExe)) : Catch : End Try
-                NetDownloadByClient(Url, TempExe)
-                RunInUi(Sub() Hint("更新已下载，正在重启以完成更新…", HintType.Finish, False))
-                System.Threading.Thread.Sleep(800)
-                ApplyUpdate(TempExe)
-            Catch ex As Exception
-                Logger.Warn(ex, "下载或应用 PCLFE 更新失败")
-                RunInUi(Sub() Hint("更新失败：" & ex.Message, HintType.Red, False))
-            End Try
-        End Sub)
+                        Try
+                            Dim TempExe As String = PathTemp & "Update\PCLFE-New.exe"
+                            Try : System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(TempExe)) : Catch : End Try
+                            NetDownloadByClient(Url, TempExe)
+                            RunInUi(Sub() Hint("更新已下载，正在重启以完成更新…", HintType.Green, False))
+                            System.Threading.Thread.Sleep(800)
+                            ApplyUpdate(TempExe)
+                        Catch ex As Exception
+                            Logger.Warn(ex, "下载或应用 PCLFE 更新失败")
+                            RunInUi(Sub() Hint("更新失败：" & ex.Message, HintType.Red, False))
+                        End Try
+                    End Sub)
     End Sub
 
     ''' <summary>
