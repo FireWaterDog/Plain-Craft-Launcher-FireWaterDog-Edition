@@ -119,20 +119,20 @@ Public Class PageOtherTest
 
     Private Shared IsTongTouOn As Boolean = False
     Private Shared TongTouPlayer As System.Windows.Media.MediaPlayer = Nothing
-    Private Shared TongTouOverlay As System.Windows.Controls.Grid = Nothing
+    Private Shared TongTouImgBackBackground As Object = Nothing
+    Private Shared TongTouImgBackVisibility As System.Windows.Visibility = System.Windows.Visibility.Collapsed
+    Private Shared TongTouImgBackEffect As Object = Nothing
+    Private Shared TongTouImgBackOpacity As Double = 1
     Private Shared ReadOnly TongTouMusicPath As String = "D:\PCL-FE\新宿决战（雨爱DJ版）.mp3"
+    Private Shared ReadOnly TongTouImagePath As String = "D:\PCL-FE\22844304.jpg"
 
     ''' <summary>
-    ''' 切换通透模式：让整个启动器变成彩虹色，并循环播放指定音乐。
+    ''' 切换通透模式：把启动器背景换成指定图片，并循环播放指定音乐。
     ''' </summary>
     Public Shared Sub ToggleTongTouMode()
         RunInUi(Sub()
             If IsTongTouOn Then
-                '关闭通透模式
-                If TongTouOverlay IsNot Nothing Then
-                    FrmMain.PanBack.Children.Remove(TongTouOverlay)
-                    TongTouOverlay = Nothing
-                End If
+                '关闭通透模式：恢复原本的背景设置
                 If TongTouPlayer IsNot Nothing Then
                     Try
                         RemoveHandler TongTouPlayer.MediaEnded, AddressOf TongTouMediaEnded
@@ -142,29 +142,17 @@ Public Class PageOtherTest
                     End Try
                     TongTouPlayer = Nothing
                 End If
+                Try
+                    FrmMain.ImgBack.Background = TongTouImgBackBackground
+                    FrmMain.ImgBack.Visibility = TongTouImgBackVisibility
+                    FrmMain.ImgBack.Effect = TongTouImgBackEffect
+                    FrmMain.ImgBack.Opacity = TongTouImgBackOpacity
+                Catch
+                End Try
                 IsTongTouOn = False
                 Hint("已退出通透模式。", HintType.Blue)
             Else
-                '开启通透模式：插入彩虹色覆盖层
-                TongTouOverlay = New System.Windows.Controls.Grid() With {
-                    .IsHitTestVisible = False,
-                    .HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
-                    .VerticalAlignment = System.Windows.VerticalAlignment.Stretch,
-                    .Opacity = 0.4
-                }
-                Dim Brush As New System.Windows.Media.LinearGradientBrush() With {
-                    .StartPoint = New System.Windows.Point(0, 0),
-                    .EndPoint = New System.Windows.Point(1, 1)
-                }
-                Brush.GradientStops.Add(New System.Windows.Media.GradientStop(System.Windows.Media.Colors.Red, 0))
-                Brush.GradientStops.Add(New System.Windows.Media.GradientStop(System.Windows.Media.Colors.Orange, 0.2))
-                Brush.GradientStops.Add(New System.Windows.Media.GradientStop(System.Windows.Media.Colors.Yellow, 0.4))
-                Brush.GradientStops.Add(New System.Windows.Media.GradientStop(System.Windows.Media.Colors.Green, 0.6))
-                Brush.GradientStops.Add(New System.Windows.Media.GradientStop(System.Windows.Media.Colors.Blue, 0.8))
-                Brush.GradientStops.Add(New System.Windows.Media.GradientStop(System.Windows.Media.Colors.Purple, 1))
-                TongTouOverlay.Background = Brush
-                FrmMain.PanBack.Children.Add(TongTouOverlay)
-                '循环播放音乐
+                '开启通透模式：循环播放音乐
                 Dim MusicPath As String = TongTouMusicPath
                 If Not System.IO.File.Exists(MusicPath) Then
                     MusicPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "新宿决战（雨爱DJ版）.mp3")
@@ -179,10 +167,34 @@ Public Class PageOtherTest
                         Logger.Warn(ex, "通透模式音乐播放失败")
                     End Try
                 Else
-                    Hint("没找到音乐文件，但彩虹色已开启~", HintType.Blue)
+                    Logger.Warn("通透模式音乐文件未找到：" & MusicPath)
+                End If
+                '把背景换成图片（复用启动器背景层 ImgBack，UI 浮于其上、保持可用）
+                Dim ImagePath As String = TongTouImagePath
+                If Not System.IO.File.Exists(ImagePath) Then
+                    ImagePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "22844304.jpg")
+                End If
+                If System.IO.File.Exists(ImagePath) Then
+                    Try
+                        TongTouImgBackBackground = FrmMain.ImgBack.Background
+                        TongTouImgBackVisibility = FrmMain.ImgBack.Visibility
+                        TongTouImgBackEffect = FrmMain.ImgBack.Effect
+                        TongTouImgBackOpacity = FrmMain.ImgBack.Opacity
+                        Dim Brush As New System.Windows.Media.ImageBrush(New System.Windows.Media.Imaging.BitmapImage(New Uri(ImagePath))) With {
+                            .Stretch = System.Windows.Media.Stretch.UniformToFill
+                        }
+                        FrmMain.ImgBack.Background = Brush
+                        FrmMain.ImgBack.Effect = Nothing
+                        FrmMain.ImgBack.Opacity = 1
+                        FrmMain.ImgBack.Visibility = System.Windows.Visibility.Visible
+                    Catch ex As Exception
+                        Logger.Warn(ex, "通透模式设置背景失败")
+                    End Try
+                Else
+                    Hint("没找到背景图片，但音乐已开启~", HintType.Blue)
                 End If
                 IsTongTouOn = True
-                Hint("通透模式已开启！尽情享受彩虹色吧~", HintType.Green)
+                Hint("活得通透！", HintType.Green)
             End If
         End Sub)
     End Sub
