@@ -213,6 +213,33 @@ Public Module ModDownload
                     New KeyValuePair(Of LoaderTask(Of String, DlClientListResult), Integer)(DlClientListBmclapiLoader, 60 + 60)
                 }, Loader.IsForceRestarting)
         End Select
+        '"未列出版本"（远古版本）合并
+        '数据源为 Omniarchive / BetaCraft 等对旧版的归档整理，格式与官方 version_manifest.json 完全一致。
+        '官方启动器不提供的 Alpha/Beta 早期版本、实验快照等会补充进"远古版"分类，可直接下载安装。
+        Try
+            Dim Unlisted As JObject = NetRequestByClient("https://zkitefly.github.io/unlisted-versions-of-minecraft/version_manifest.json",
+                                                         Timeout:=8000, RequireJson:=True).DeserializeJson()
+            Dim RootJson As JObject = Loader.Output.Value
+            If RootJson IsNot Nothing AndAlso RootJson("versions") IsNot Nothing AndAlso Unlisted("versions") IsNot Nothing Then
+                Dim Versions As JArray = CType(RootJson("versions"), JArray)
+                Dim ExistIds As New HashSet(Of String)
+                For Each OldVersion As JObject In Versions
+                    If OldVersion("id") IsNot Nothing Then ExistIds.Add(OldVersion("id").ToString)
+                Next
+                Dim AddedCount As Integer = 0
+                For Each NewVersion As JObject In Unlisted("versions")
+                    If NewVersion("id") Is Nothing Then Continue For
+                    Dim NewId As String = NewVersion("id").ToString
+                    If ExistIds.Contains(NewId) Then Continue For
+                    Versions.Add(NewVersion.DeepClone())
+                    ExistIds.Add(NewId)
+                    AddedCount += 1
+                Next
+                Logger.Info($"已合并 {AddedCount} 个未列出版本（远古版）")
+            End If
+        Catch ex As Exception
+            Logger.Warn(ex, "未列出版本（远古版）列表加载失败，将仅显示官方版本")
+        End Try
         '提取所有 Drop 序数
         Dim Drops As New List(Of Integer)
         For Each Version As JObject In Loader.Output.Value("versions")
