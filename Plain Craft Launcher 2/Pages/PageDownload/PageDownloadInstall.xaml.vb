@@ -454,7 +454,11 @@ Public Class PageDownloadInstall
         ExitSelectPage() '返回
         Try
             Dim Dict As New Dictionary(Of String, List(Of JObject)) From {
-                {"正式版", New List(Of JObject)}, {"预览版", New List(Of JObject)}, {"远古版", New List(Of JObject)}, {"愚人节版", New List(Of JObject)}
+                {"正式版", New List(Of JObject)}, {"预览版", New List(Of JObject)},
+                {"Pre-Classic", New List(Of JObject)}, {"Classic", New List(Of JObject)},
+                {"Indev", New List(Of JObject)}, {"Infdev", New List(Of JObject)},
+                {"Alpha", New List(Of JObject)}, {"Beta", New List(Of JObject)},
+                {"远古版", New List(Of JObject)}, {"愚人节版", New List(Of JObject)}
             }
             For Each Version As JObject In MinecraftVersions
                 '确定分类
@@ -495,7 +499,23 @@ Public Class PageDownloadInstall
                         '已被处理的愚人节版
                         Type = "愚人节版"
                     Case Else
-                        Type = "远古版"
+                        '按版本号前缀细分远古版本，便于在下载页直接找到 Pre-Classic / Classic / Indev / Infdev 等
+                        Dim LowerId As String = Version("id").ToString.Lower
+                        If LowerId.StartsWithF("rd-") Then
+                            Type = "Pre-Classic"
+                        ElseIf LowerId.StartsWithF("c0.") Then
+                            Type = "Classic"
+                        ElseIf LowerId.StartsWithF("inf-") Then
+                            Type = "Infdev"
+                        ElseIf LowerId.StartsWithF("in-") Then
+                            Type = "Indev"
+                        ElseIf LowerId.StartsWithF("a1.") Then
+                            Type = "Alpha"
+                        ElseIf LowerId.StartsWithF("b1.") Then
+                            Type = "Beta"
+                        Else
+                            Type = "远古版"
+                        End If
                 End Select
                 '加入辞典
                 Dict(Type).Add(Version)
@@ -509,13 +529,15 @@ Public Class PageDownloadInstall
             '添加最新版本
             Dim CardInfo As New MyCard With {.Title = "最新版本", .Margin = New Thickness(0, 15, 0, 15)}
             Dim PinnedVersions As New List(Of JObject)
-            Dim Release As JObject = Dict("正式版")(0).DeepClone()
-            Release("lore") = "最新正式版，发布于 " & Release("releaseTime").Value(Of Date).ToString("yyyy'/'MM'/'dd HH':'mm")
-            PinnedVersions.Add(Release)
-            If Dict("正式版")(0)("releaseTime").Value(Of Date) < Dict("预览版")(0)("releaseTime").Value(Of Date) Then
-                Dim Snapshot As JObject = Dict("预览版")(0).DeepClone()
-                Snapshot("lore") = "最新预览版，发布于 " & Snapshot("releaseTime").Value(Of Date).ToString("yyyy'/'MM'/'dd HH':'mm")
-                PinnedVersions.Add(Snapshot)
+            If Dict("正式版").Any() Then
+                Dim Release As JObject = Dict("正式版")(0).DeepClone()
+                Release("lore") = "最新正式版，发布于 " & Release("releaseTime").Value(Of Date).ToString("yyyy'/'MM'/'dd HH':'mm")
+                PinnedVersions.Add(Release)
+                If Dict("预览版").Any() AndAlso Release("releaseTime").Value(Of Date) < Dict("预览版")(0)("releaseTime").Value(Of Date) Then
+                    Dim Snapshot As JObject = Dict("预览版")(0).DeepClone()
+                    Snapshot("lore") = "最新预览版，发布于 " & Snapshot("releaseTime").Value(Of Date).ToString("yyyy'/'MM'/'dd HH':'mm")
+                    PinnedVersions.Add(Snapshot)
+                End If
             End If
             Dim PanInfo As New StackPanel With {.Margin = New Thickness(20, MyCard.SwapedHeight, 18, 0), .VerticalAlignment = VerticalAlignment.Top, .RenderTransform = New TranslateTransform(0, 0)}
             CardInfo.Children.Add(PanInfo)
