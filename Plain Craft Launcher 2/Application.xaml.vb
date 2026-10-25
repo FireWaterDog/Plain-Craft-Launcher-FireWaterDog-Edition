@@ -217,7 +217,7 @@ RetryCacheCheck:
 
     '动态 DLL 加载
     Private Sub New() '这里必须尽早调用，且不能使用任何库，否则加载 MeloongCore 就会导致崩溃
-        Static Prefixes As String() = {"NAudio", "Newtonsoft.Json", "Ookii.Dialogs.Wpf", "Imazen.WebP", "CacheCow.Common", "CacheCow.Client.FileStore", "CacheCow.Client", "ThrottleDebounce", "System.Net.Http.Formatting", "Microsoft.Win32.Registry", "PCLCS", "MeloongCore.Wpf", "MeloongCore"}
+        Static Prefixes As String() = {"NAudio", "Newtonsoft.Json", "Ookii.Dialogs.Wpf", "Imazen.WebP", "CacheCow.Common", "CacheCow.Client.FileStore", "CacheCow.Client", "ThrottleDebounce", "System.Net.Http.Formatting", "Microsoft.Win32.Registry", "Microsoft.Web.WebView2.Wpf", "Microsoft.Web.WebView2.Core", "PCLCS", "MeloongCore.Wpf", "MeloongCore"}
         Static LoadedAssemblies As New ConcurrentDictionary(Of String, Lazy(Of Assembly))(StringComparer.Ordinal) '缓存
         AddHandler AppDomain.CurrentDomain.AssemblyResolve,
         Function(sender As Object, Args As ResolveEventArgs) As Assembly
@@ -227,17 +227,36 @@ RetryCacheCheck:
             Function()
                 Dim LoadedAssembly = Assembly.Load(DirectCast(My.Resources.ResourceManager.GetObject(p), Byte()))
                 If p = "Imazen.WebP" Then ExtractLibwebp() 'WebP 特判
+                If p.StartsWith("Microsoft.Web.WebView2", StringComparison.Ordinal) Then ExtractWebView2Loader() 'WebView2 原生加载器特判
                 Return LoadedAssembly
             End Function, LazyThreadSafetyMode.ExecutionAndPublication))
             Return LazyAssembly.Value
         End Function
     End Sub
     Private Shared Sub ExtractLibwebp() '这个方法会调用 ModBase，进而调用 MeloongCore，所以不能放在 New 里
-        SetDllDirectory(PathUtils.RemoveSlashSuffix(PathPure.Value))
+        '原生库统一释放到 PCL 子目录，避免散落在 exe 旁边
+        Dim DepDir As String = PathUtils.RemoveSlashSuffix(PathPure.Value) & "\PCL"
+        DirectoryUtils.Create(DepDir)
+        SetDllDirectory(DepDir)
         Try
-            ExtractResources(PathPure.Value & "libwebp.dll", "libwebp64")
+            ExtractResources(DepDir & "\libwebp.dll", "libwebp64")
         Catch ex As Exception
             Logger.Warn(ex, "写入 libwebp.dll 失败") '防止同时加载多个图片时，同时写入文件导致文件占用，进而导致崩溃
+        End Try
+    End Sub
+    Private Shared Sub ExtractWebView2Loader()
+        'WebView2Loader.dll 是原生库，无法通过 Assembly.Load 加载，必须释放到 PCL 子目录
+        Try
+            Dim DepDir As String = IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "PCL")
+            IO.Directory.CreateDirectory(DepDir)
+            Dim Target As String = IO.Path.Combine(DepDir, "WebView2Loader.dll")
+            If Not IO.File.Exists(Target) Then
+                Dim Data = DirectCast(My.Resources.ResourceManager.GetObject("WebView2Loader"), Byte())
+                If Data IsNot Nothing Then IO.File.WriteAllBytes(Target, Data)
+            End If
+            SetDllDirectory(DepDir)
+        Catch ex As Exception
+            Logger.Warn(ex, "写入 WebView2Loader.dll 失败")
         End Try
     End Sub
     Private Declare Function SetDllDirectory Lib "kernel32" Alias "SetDllDirectoryA" (lpPathName As String) As Boolean
