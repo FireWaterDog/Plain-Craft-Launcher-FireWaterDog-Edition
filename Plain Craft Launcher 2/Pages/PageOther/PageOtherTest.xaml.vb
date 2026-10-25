@@ -2,17 +2,67 @@ Public Class PageOtherTest
 
 #Region "内存优化"
 
+    '把当前进程暂不使用的物理内存（工作集）归还操作系统。
+    '仅调用 GC.Collect 只会回收托管对象，CLR 不会主动把内存还给系统，任务管理器里就看不到下降。
+    Private Declare Function EmptyWorkingSet Lib "psapi.dll" (hProcess As IntPtr) As Boolean
+    Private Declare Function SetProcessWorkingSetSize Lib "kernel32" (hProcess As IntPtr, dwMinimumWorkingSetSize As IntPtr, dwMaximumWorkingSetSize As IntPtr) As Boolean
+
     ''' <summary>
-    ''' 内存优化。强制回收内存并释放部分缓存。
+    ''' 内存优化。强制回收托管内存，并把暂不使用的物理内存归还操作系统。
     ''' </summary>
     ''' <param name="ShowHint">是否显示提示。</param>
     Public Shared Sub MemoryOptimize(ShowHint As Boolean)
+        Dim Before As Long = 0
+        Dim After As Long = 0
         Try
-            '强制回收内存
-            GC.Collect()
-            GC.WaitForPendingFinalizers()
-            GC.Collect()
-            If ShowHint Then RunInUi(Sub() Hint("内存优化完成！已释放被占用的内存。", HintType.Green))
+            '记录优化前的物理内存（工作集）
+            Try
+                Using P As System.Diagnostics.Process = System.Diagnostics.Process.GetCurrentProcess()
+                    Before = P.WorkingSet64
+                End Using
+            Catch
+            End Try
+
+            '让下一次 GC 顺便压缩大对象堆（LOH），减少内存碎片（.NET Framework 4.5.1+）
+            Try
+                System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce
+            Catch
+            End Try
+
+            '完整的强制回收：阻塞式 + 压缩全部代，跑两轮尽量清空可回收对象
+            For i As Integer = 1 To 2
+                GC.Collect(2, GCCollectionMode.Forced, blocking:=True, compacting:=True)
+                GC.WaitForPendingFinalizers()
+            Next
+
+            '关键一步：把工作集归还操作系统。不做这一步时，内存几乎不会减少
+            Try
+                Using P As System.Diagnostics.Process = System.Diagnostics.Process.GetCurrentProcess()
+                    Dim Handle As IntPtr = P.Handle
+                    If Not EmptyWorkingSet(Handle) Then
+                        '个别系统上 psapi 调用失败时，退回到 kernel32 的等价方式
+                        SetProcessWorkingSetSize(Handle, New IntPtr(-1), New IntPtr(-1))
+                    End If
+                    P.Refresh()
+                    After = P.WorkingSet64
+                End Using
+            Catch
+            End Try
+
+            '组装提示与日志
+            Dim Msg As String
+            If Before > 0 AndAlso After > 0 Then
+                Dim BeforeMb As Long = Before \ 1024 \ 1024
+                Dim AfterMb As Long = After \ 1024 \ 1024
+                Dim FreedMb As Long = BeforeMb - AfterMb
+                If FreedMb < 0 Then FreedMb = 0
+                Logger.Info($"内存优化完成：工作集 {BeforeMb} MB → {AfterMb} MB，释放约 {FreedMb} MB")
+                Msg = $"内存优化完成！已回收托管内存并把暂不使用的物理内存归还系统，释放约 {FreedMb} MB。"
+            Else
+                Logger.Info("内存优化完成（未能读取工作集数据）")
+                Msg = "内存优化完成！已回收托管内存并把暂不使用的物理内存归还系统。"
+            End If
+            If ShowHint Then RunInUi(Sub() Hint(Msg, HintType.Green))
         Catch ex As Exception
             Logger.Error(ex, "内存优化失败")
             If ShowHint Then RunInUi(Sub() Hint("内存优化失败：" & ex.Message, HintType.Red))
