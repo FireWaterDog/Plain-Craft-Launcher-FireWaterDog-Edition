@@ -310,11 +310,30 @@ Friend Module ModSecret
     ''' </summary>
     Public ServerConfig As JObject
 
+    ''' <summary>
+    ''' PCLFE 内置的默认联机配置。
+    ''' 开源分支无法联网获取配置，故首次运行时写入 PCL\ServerConfig.json，保证联机功能开箱可用。
+    ''' 使用 EasyTier v2.6.4 与若干社区公共节点，可自行替换该文件。
+    ''' </summary>
+    Private ReadOnly PclfeDefaultServerConfig As String = "{""Link"":{""EasyTierVersion"":264,""Downloads"":[" &
+        """https://gh-proxy.com/https://github.com/EasyTier/EasyTier/releases/download/v2.6.4/easytier-windows-{arch}-v2.6.4.zip""," &
+        """https://ghproxy.net/https://github.com/EasyTier/EasyTier/releases/download/v2.6.4/easytier-windows-{arch}-v2.6.4.zip""," &
+        """https://github.com/EasyTier/EasyTier/releases/download/v2.6.4/easytier-windows-{arch}-v2.6.4.zip""]," &
+        """Argument"":""--no-tun"",""DiscoverPeerId"":0,""DiscoverPeer"":""tcp://et.sumnight.top:11010""," &
+        """Peers"":[""tcp://et.sumnight.top:11010"",""tcp://easytier.weiai.org.cn:11010"",""tcp://225284.xyz:11010"",""tcp://183.230.36.171:11010""]," &
+        """MandatoryPeers"":[],""PeersBlackList"":[],""RandomPeer"":1}}"
+
     Public ServerLoader As New LoaderTask(Of Integer, Integer)("PCL 配置更新",
     Sub()
         ' PCLFE：开源分支无法联网获取配置，改为从本地 PCL\ServerConfig.json 读取（内容取自 PCL 官方版缓存）。
         Try
             Dim LocalConfigPath As String = Paths.Base & "PCL\ServerConfig.json"
+            If Not FileUtils.Exists(LocalConfigPath) Then
+                '文件缺失时写入内置默认配置，避免联机功能直接不可用
+                DirectoryUtils.Create(Paths.Base & "PCL\")
+                FileUtils.Write(LocalConfigPath, PclfeDefaultServerConfig)
+                Logger.Info($"已生成默认联机配置：{LocalConfigPath}")
+            End If
             If FileUtils.Exists(LocalConfigPath) Then
                 ServerConfig = FileUtils.ReadAsString(LocalConfigPath).DeserializeJson()
                 Logger.Info($"已从本地载入联机配置：{LocalConfigPath}")
