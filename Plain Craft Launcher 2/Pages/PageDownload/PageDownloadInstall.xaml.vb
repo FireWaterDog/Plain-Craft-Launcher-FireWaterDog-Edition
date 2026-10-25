@@ -455,6 +455,7 @@ Public Class PageDownloadInstall
         Try
             Dim Dict As New Dictionary(Of String, List(Of JObject)) From {
                 {"正式版", New List(Of JObject)}, {"预览版", New List(Of JObject)},
+                {"实验版", New List(Of JObject)},
                 {"Pre-Classic", New List(Of JObject)}, {"Classic", New List(Of JObject)},
                 {"Indev", New List(Of JObject)}, {"Infdev", New List(Of JObject)},
                 {"Alpha", New List(Of JObject)}, {"Beta", New List(Of JObject)},
@@ -498,6 +499,9 @@ Public Class PageDownloadInstall
                     Case "special"
                         '已被处理的愚人节版
                         Type = "愚人节版"
+                    Case "pending"
+                        '实验性快照 / 战斗测试（如 1.18_experimental-snapshot-x、1_16_combat-x），不属于远古版本
+                        Type = "实验版"
                     Case Else
                         '按版本号前缀细分远古版本，便于在下载页直接找到 Pre-Classic / Classic / Indev / Infdev 等
                         Dim LowerId As String = Version("id").ToString.Lower
