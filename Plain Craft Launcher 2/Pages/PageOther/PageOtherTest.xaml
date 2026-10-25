@@ -14,7 +14,6 @@
                         <RowDefinition Height="45" />
                         <RowDefinition Height="45" />
                         <RowDefinition Height="45" />
-                        <RowDefinition Height="45" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -29,9 +28,6 @@
                     <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" TextWrapping="Wrap" LineHeight="17"
                                Text="输入任意网址，将文件下载到本地（需以 http:// 或 https:// 开头）。" />
                     <local:MyButton Grid.Row="2" Grid.Column="1" Text="自定义下载" Height="35" x:Name="BtnDownload" />
-                    <TextBlock Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" TextWrapping="Wrap" LineHeight="17"
-                               Text="一个隐藏的彩蛋：让整个启动器变成彩虹色，并循环播放音乐。" />
-                    <local:MyButton Grid.Row="3" Grid.Column="1" Text="通透模式" Height="35" x:Name="BtnTongTou" />
                 </Grid>
             </local:MyCard>
             <local:MyCard Margin="0,0,0,15" Title="趣味">
