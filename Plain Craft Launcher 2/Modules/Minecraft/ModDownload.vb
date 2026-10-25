@@ -24,7 +24,19 @@ Public Module ModDownload
         If ReturnNothingOnFileUseable AndAlso Checker.Check(Instance.PathVersion & Instance.Name & ".jar") Is Nothing Then Return Nothing '通过校验
         '返回下载信息
         Dim JarUrl As String = Instance.JsonObject("downloads")("client")("url")
-        Return New NetFile(DlSourceLauncherOrMetaGet(JarUrl), Instance.PathVersion & Instance.Name & ".jar", Checker)
+        Dim Urls As New List(Of String)(DlSourceLauncherOrMetaGet(JarUrl))
+        '对远古版本追加 BetaCraft 归档的 jar 作为兜底下载源
+        '排在最后：仅在原有地址（官方 / 镜像 / 未列出版本归档）全部失败时才会尝试，不影响正常下载
+        Try
+            Dim VersionId As String = If(Instance.JsonObject("id"), Instance.Name).ToString
+            If McVersion.VersionToDrop(VersionId) = 209 Then
+                Dim BetaCraftUrl As String = "https://files.betacraft.uk/launcher/assets/versions/" & VersionId & ".jar"
+                If Not Urls.Contains(BetaCraftUrl) Then Urls.Add(BetaCraftUrl)
+            End If
+        Catch ex As Exception
+            Logger.Warn(ex, "添加 BetaCraft 兜底下载源失败")
+        End Try
+        Return New NetFile(Urls, Instance.PathVersion & Instance.Name & ".jar", Checker)
     End Function
 
     ''' <summary>
