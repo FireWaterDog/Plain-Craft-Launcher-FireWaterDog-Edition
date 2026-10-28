@@ -44,6 +44,7 @@
                     <local:MyButton Grid.Row="0" Grid.Column="1" Text="今日人品" Height="35" x:Name="BtnJrrp" />
                 </Grid>
             </local:MyCard>
+            <StackPanel x:Name="PanPlugins" />
         </StackPanel>
     </local:MyScrollViewer>
 </local:MyPageRight>

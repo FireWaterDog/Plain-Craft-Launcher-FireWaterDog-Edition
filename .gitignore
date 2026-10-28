@@ -345,3 +345,6 @@ MaskFiles/
 
 # WorkBuddy internal tooling data (not project source)
 .workbuddy/
+
+# 插件编写器（本地工具，不上传）
+PluginEditor/

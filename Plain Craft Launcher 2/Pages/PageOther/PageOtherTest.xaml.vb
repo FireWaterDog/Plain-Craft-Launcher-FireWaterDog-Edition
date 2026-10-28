@@ -224,4 +224,46 @@ Public Class PageOtherTest
 
 #End Region
 
+#Region "插件"
+
+    Private Sub PageOtherTest_Loaded(sender As Object, e As RoutedEventArgs) Handles Me.Loaded
+        BuildPluginCards()
+    End Sub
+
+    ''' <summary>
+    ''' 根据 PCL\Plugins\ 下的插件定义生成卡片与按钮。
+    ''' </summary>
+    Private Sub BuildPluginCards()
+        Try
+            PanPlugins.Children.Clear()
+            For Each Plugin In ModPlugin.LoadAll()
+                Dim Card As New MyCard With {.Title = Plugin.Name, .Margin = New Thickness(0, 0, 0, 15)}
+                Dim Stack As New StackPanel With {.Margin = New Thickness(21, 40, 21, 16)}
+                Card.Children.Add(Stack)
+                '说明文字
+                If Not String.IsNullOrWhiteSpace(Plugin.Description) Then
+                    Dim Desc As New TextBlock
+                    Desc.Text = Plugin.Description
+                    Desc.TextWrapping = TextWrapping.Wrap
+                    Desc.Opacity = 0.7
+                    Desc.Margin = New Thickness(0, 0, 0, 10)
+                    Stack.Children.Add(Desc)
+                End If
+                '插件按钮
+                For Each ButtonDef In Plugin.Buttons
+                    Dim NewButton As New MyButton With {.Text = ButtonDef.Text, .Height = 35, .Margin = New Thickness(0, 0, 0, 8), .HorizontalAlignment = HorizontalAlignment.Left}
+                    If Not String.IsNullOrWhiteSpace(ButtonDef.ToolTip) Then NewButton.ToolTip = ButtonDef.ToolTip
+                    Dim CapturedButton = ButtonDef
+                    AddHandler NewButton.Click, Sub(s, args) ModPlugin.ExecuteButton(CapturedButton)
+                    Stack.Children.Add(NewButton)
+                Next
+                PanPlugins.Children.Add(Card)
+            Next
+        Catch ex As Exception
+            Logger.Warn(ex, "构建插件卡片失败")
+        End Try
+    End Sub
+
+#End Region
+
 End Class
