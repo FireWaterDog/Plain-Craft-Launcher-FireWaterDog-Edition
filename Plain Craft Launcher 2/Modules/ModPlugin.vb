@@ -98,7 +98,8 @@ Public Module ModPlugin
         Dim Marker As String = PluginFolder & "." & FolderName & ".unpacked"
         Dim Stamp As String = ""
         Try
-            Stamp = FileUtils.GetInfo(PackagePath).LastWriteTimeUtc.ToString("o")
+            Dim PkgInfo = FileUtils.GetInfo(PackagePath)
+            Stamp = PkgInfo.LastWriteTime.ToString("o") & "|" & PkgInfo.Length.ToString()
         Catch
         End Try
         Dim NeedUnpack As Boolean = False
