@@ -16,6 +16,8 @@ Public Class Settings
         New Setting("HintBuy", False, Source:=Sources.Registry),
         New Setting("HintClearRubbish", 0, Source:=Sources.Registry),
         New Setting("HintUpdateMod", False, Source:=Sources.Registry),
+        New Setting("LinkLastCode", "", Source:=Sources.Registry, Encrypted:=True),
+        New Setting("LinkRoomHistory", "", Source:=Sources.Registry, Encrypted:=True),
         New Setting("HintCustomCommand", False, Source:=Sources.Registry),
         New Setting("HintCustomWarn", False, Source:=Sources.Registry),
         New Setting("HintMoreAdvancedSetup", False, Source:=Sources.Registry),

@@ -17,12 +17,14 @@
                                 <ColumnDefinition Width="Auto" SharedSizeGroup="Button" />
                                 <ColumnDefinition Width="Auto" SharedSizeGroup="Button" />
                                 <ColumnDefinition Width="Auto" SharedSizeGroup="Button" />
+                                <ColumnDefinition Width="Auto" SharedSizeGroup="Button" />
                             </Grid.ColumnDefinitions>
                             <local:MyButton x:Name="BtnManageOpen" Grid.Column="0" MinWidth="110" Text="打开文件夹" Padding="13,0" Margin="0,0,15,0" HorizontalAlignment="Left" ColorType="Highlight" />
                             <local:MyButton x:Name="BtnManageInstall" Grid.Column="1" MinWidth="110" Text="从文件安装" Padding="13,0" Margin="0,0,15,0" HorizontalAlignment="Left" />
                             <local:MyButton x:Name="BtnManageDownload" Grid.Column="2" MinWidth="110" Text="下载新 Mod" Padding="13,0" Margin="0,0,15,0" HorizontalAlignment="Left" />
                             <local:MyButton x:Name="BtnManageSelectAll" Grid.Column="3" MinWidth="110" Text="全选" Padding="13,0" Margin="0,0,15,0" HorizontalAlignment="Left" />
-                            <local:MyButton x:Name="BtnManageCheckConflict" Grid.Column="4" MinWidth="110" Text="启动测试" Padding="13,0" Margin="0,0,15,0" HorizontalAlignment="Left" ToolTip="通过真实启动一次游戏来检测 Mod 冲突：启动成功（加载完成）会提示未检测到冲突并自动关闭；启动失败会自动进行崩溃分析并列出冲突 Mod。&#xa;测试期间可能短暂出现游戏窗口。" />
+                            <local:MyButton x:Name="BtnManageUpdateAll" Grid.Column="4" MinWidth="110" Text="全部更新" Padding="13,0" Margin="0,0,15,0" HorizontalAlignment="Left" ToolTip="一键更新该版本下所有可更新（且已启用）的 Mod。&#xa;更新前会提示风险，建议先备份存档。" />
+                            <local:MyButton x:Name="BtnManageCheckConflict" Grid.Column="5" MinWidth="110" Text="启动测试" Padding="13,0" Margin="0,0,15,0" HorizontalAlignment="Left" ToolTip="通过真实启动一次游戏来检测 Mod 冲突：启动成功（加载完成）会提示未检测到冲突并自动关闭；启动失败会自动进行崩溃分析并列出冲突 Mod。&#xa;测试期间可能短暂出现游戏窗口。" />
                         </Grid>
                     </local:MyCard>
                     <local:MyCard x:Name="PanListBack" VerticalAlignment="Top" Opacity="0" Margin="0,0,0,14" Title=" " MinHeight="55">

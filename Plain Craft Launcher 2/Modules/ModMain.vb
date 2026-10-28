@@ -1278,3 +1278,129 @@ Public Module ModConflictTest
     End Function
 
 End Module
+
+''' <summary>
+''' 实例一键修复：检查版本 Json、主 Jar、支持库与资源文件的完整性，并自动重新下载缺失或损坏的部分。
+''' </summary>
+Public Module ModInstanceRepair
+
+    ''' <summary>
+    ''' 交互式一键修复。必须在 UI 线程调用（内部会弹出确认框与提示）。
+    ''' </summary>
+    Public Sub RepairInteractive(Instance As McInstance)
+        If Instance Is Nothing Then Return
+        If McInstanceLock.IsLocked(Instance) Then
+            Hint("该版本正在被修改，请稍后再修复！", HintType.Red)
+            Return
+        End If
+        If ShouldIgnoreFileCheck(Instance) Then
+            Hint("请先关闭 [版本设置 → 设置 → 高级启动选项 → 关闭文件校验]，然后再尝试修复！", HintType.Blue)
+            Return
+        End If
+        '重复任务检查
+        For Each OngoingLoader In LoaderTaskbar
+            If OngoingLoader.Name <> Instance.Name & " 一键修复" Then Continue For
+            Hint("正在处理中，请稍候！", HintType.Red)
+            Return
+        Next
+        Try
+            If Not Instance.IsLoaded Then Instance.Load()
+        Catch ex As Exception
+            Hint("无法读取该版本：" & ex.Message, HintType.Red)
+            Return
+        End Try
+        '收集问题
+        Dim Issues As New List(Of String)
+        '1. 版本 Json
+        Dim JsonPath As String = Instance.PathVersion & Instance.Name & ".json"
+        If Not FileUtils.Exists(JsonPath) Then
+            Issues.Add("· 版本 Json 文件缺失（无法自动修复，需要重新下载该版本）")
+        Else
+            Try
+                If FileUtils.ReadAsJson(JsonPath) Is Nothing Then Issues.Add("· 版本 Json 文件为空或无法解析")
+            Catch ex As Exception
+                Issues.Add("· 版本 Json 文件损坏：" & ex.Message)
+            End Try
+        End If
+        '2. 主 Jar
+        Try
+            If DlClientJarGet(Instance, True) IsNot Nothing Then Issues.Add("· 主 Jar 文件缺失或校验失败")
+        Catch ex As Exception
+            Issues.Add("· 无法读取主 Jar 信息：" & ex.Message)
+        End Try
+        '3. 支持库与资源
+        Issues.Add("· 支持库与资源文件（含 Assets 索引）将一并校验并补全")
+        '确认
+        Dim Message As String = $"即将检查并修复版本「{Instance.Name}」：{vbCrLf}{vbCrLf}{Issues.Join(vbCrLf)}{vbCrLf}{vbCrLf}修复会重新下载缺失或校验失败的文件，可能需要一些时间。是否继续？"
+        If MyMsgBox(Message, "一键修复", "开始修复", "取消") <> 1 Then Return
+        '启动补全
+        Dim Loader As New LoaderCombo(Of String)(Instance.Name & " 一键修复", DlClientFix(Instance, True, False))
+        Loader.OnStateChanged =
+        Sub()
+            Select Case Loader.State
+                Case LoadState.Finished
+                    Hint("一键修复完成！若仍无法启动，请尝试重新下载该版本。", HintType.Green)
+                Case LoadState.Failed
+                    Hint("一键修复失败：" & Loader.Error.GetDisplay(False), HintType.Red)
+                Case LoadState.Canceled
+                    Hint("一键修复已取消。", HintType.Blue)
+            End Select
+        End Sub
+        Loader.Start(Instance.Name)
+        LoaderTaskbarAdd(Loader)
+        FrmMain.BtnExtraDownload.ShowRefresh()
+        FrmMain.BtnExtraDownload.Ribble()
+    End Sub
+
+End Module
+
+''' <summary>
+''' 联机房间历史：记住最近加入过的房间邀请码（加密存储，去重，最多 10 条）。
+''' </summary>
+Public Module ModLinkHistory
+
+    Private Const MaxRecords As Integer = 10
+    Private Const Separator As String = "¨"
+
+    ''' <summary>
+    ''' 获取历史邀请码列表，最新的在最前。
+    ''' </summary>
+    Public Function GetRecords() As List(Of String)
+        Try
+            Dim Raw As String = Settings.Get(Of String)("LinkRoomHistory")
+            If String.IsNullOrEmpty(Raw) Then Return New List(Of String)
+            Return Raw.Split({Separator}, StringSplitOptions.RemoveEmptyEntries).ToList()
+        Catch ex As Exception
+            Logger.Warn(ex, "读取联机房间历史失败")
+            Return New List(Of String)
+        End Try
+    End Function
+
+    ''' <summary>
+    ''' 记录一个房间邀请码（去重并置顶，超出上限自动丢弃最旧的）。
+    ''' </summary>
+    Public Sub AddRecord(Code As String)
+        If String.IsNullOrEmpty(Code) Then Return
+        Try
+            Dim Records As List(Of String) = GetRecords()
+            Records.RemoveAll(Function(c) c = Code)
+            Records.Insert(0, Code)
+            While Records.Count > MaxRecords
+                Records.RemoveAt(Records.Count - 1)
+            End While
+            Settings.Set("LinkRoomHistory", Records.Join(Separator))
+            Settings.Set("LinkLastCode", Code)
+        Catch ex As Exception
+            Logger.Warn(ex, "保存联机房间历史失败")
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 最近一次的邀请码，没有则返回空字符串。
+    ''' </summary>
+    Public Function GetLatest() As String
+        Dim Records As List(Of String) = GetRecords()
+        Return If(Records.Any(), Records(0), "")
+    End Function
+
+End Module

@@ -276,6 +276,11 @@ Public Class PageInstanceOverall
         End Try
     End Sub
 
+    '一键修复
+    Private Sub BtnManageRepair_Click(sender As Object, e As EventArgs) Handles BtnManageRepair.Click
+        ModInstanceRepair.RepairInteractive(PageInstanceLeft.Instance)
+    End Sub
+
     '删除版本
     '修改此代码时，同时修改 PageSelectRight 中的代码
     Private Sub BtnManageDelete_Click(sender As Object, e As EventArgs) Handles BtnManageDelete.Click

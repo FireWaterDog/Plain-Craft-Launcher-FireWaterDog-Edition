@@ -540,6 +540,22 @@ Install:
         UpdateMods(UpdateList)
         ChangeAllSelected(False)
     End Sub
+
+    '全部更新（无需逐个勾选）
+    Private Sub BtnManageUpdateAll_Click() Handles BtnManageUpdateAll.Click
+        Try
+            Dim UpdateList As List(Of LocalResourceFile) = LocalResourceLoader.Output.
+                Where(Function(m) m.HasUpdate AndAlso m.IsEnabled).ToList()
+            If Not UpdateList.Any() Then
+                Hint("当前没有可更新的 Mod！", HintType.Blue)
+                Return
+            End If
+            Hint($"准备更新 {UpdateList.Count} 个 Mod……", HintType.Blue)
+            UpdateMods(UpdateList)
+        Catch ex As Exception
+            Logger.Error(ex, "全部更新 Mod 失败", LogBehavior.Alert)
+        End Try
+    End Sub
     ''' <summary>
     ''' 记录正在进行 Mod 更新的 mods 文件夹路径。
     ''' </summary>

@@ -121,7 +121,7 @@ Public Class PageLinkMain
         NetworkName = $"P{ServerPort.ConvertRadix(16).PadLeft(4, "0"c)}-{GenerateRandomCode()}"
         NetworkSecret = GenerateRandomCode()
         DiscoverNodeID = -1
-        Logger.Info($"尝试创建房间，网络名 {NetworkName}，网络密码 {NetworkSecret}，端口 {ServerPort}")
+        Logger.Info($"尝试创建房间，网络名 {NetworkName}，网络密码 {MaskSecret(NetworkSecret)}，端口 {ServerPort}")
         '启动
         ChangeState(LinkStates.Loading)
     End Sub
@@ -132,8 +132,12 @@ Public Class PageLinkMain
     ''' 输入邀请码，切换到联机页并立即加入房间。
     ''' </summary>
     Public Shared Sub Join() Handles PanSelectJoin.MouseLeftButtonUp
-        Dim Code As String = MyMsgBoxInput("输入邀请码", "输入房主发给你的邀请码。",
-            HintText:=If(String.IsNullOrEmpty(LastCode), "", "使用上一次的邀请码"))
+        '从房间历史中恢复上次使用的邀请码（跨重启有效）
+        If LastCode Is Nothing Then LastCode = ModLinkHistory.GetLatest()
+        Dim HistoryCount As Integer = ModLinkHistory.GetRecords().Count
+        Dim Hint As String = If(String.IsNullOrEmpty(LastCode), "",
+            If(HistoryCount > 1, $"使用上一次的邀请码（已记录 {HistoryCount} 个房间）", "使用上一次的邀请码"))
+        Dim Code As String = MyMsgBoxInput("输入邀请码", "输入房主发给你的邀请码。", HintText:=Hint)
         If Not String.IsNullOrEmpty(LastCode) AndAlso Code IsNot Nothing AndAlso Code = "" Then Code = LastCode
         If Code Is Nothing Then Return
         Join(Code)
@@ -147,7 +151,7 @@ Public Class PageLinkMain
             Return
         End If
         Code = FixCodeFormat(Code)
-        Logger.Info($"实际使用的邀请码：{Code}")
+        Logger.Info($"实际使用的邀请码：{MaskInviteCode(Code)}")
         '基础信息
         IsServerSide = False
         ServerPort = Code.Substring(1, 4).Upper.ConvertRadix(16, 10)
@@ -158,11 +162,26 @@ Public Class PageLinkMain
         Else
             DiscoverNodeID = Code.Substring(20, 3).Upper.ConvertRadix(16, 10)
         End If
-        Logger.Info($"尝试加入房间，网络名 {NetworkName}，网络密码 {NetworkSecret}，端口 {ServerPort}，发现节点 {DiscoverNodeID}")
+        Logger.Info($"尝试加入房间，网络名 {NetworkName}，网络密码 {MaskSecret(NetworkSecret)}，端口 {ServerPort}，发现节点 {DiscoverNodeID}")
         '启动
         LastCode = Code
+        ModLinkHistory.AddRecord(Code)
         ChangeState(LinkStates.Loading)
     End Sub
+    ''' <summary>
+    ''' 对网络密码打码，避免明文写入日志（日志常被上传到群里求助）。
+    ''' </summary>
+    Private Shared Function MaskSecret(Secret As String) As String
+        If String.IsNullOrEmpty(Secret) Then Return "(空)"
+        Return New String("*"c, Secret.Length)
+    End Function
+    ''' <summary>
+    ''' 只对邀请码中的网络密码段（第 13~17 位）打码，其余部分保留以便排查问题。
+    ''' </summary>
+    Private Shared Function MaskInviteCode(Code As String) As String
+        If String.IsNullOrEmpty(Code) OrElse Code.Length < 18 Then Return "(无效邀请码)"
+        Return Code.Substring(0, 12) & "*****" & Code.Substring(17)
+    End Function
     Public Shared Function ValidateCodeFormat(Code As String) As String
         If Code Is Nothing Then Return "邀请码为空！"
         Code = FixCodeFormat(Code)
@@ -312,7 +331,7 @@ Public Class PageLinkMain
         'UI 更新
         If IsServerSide Then
             LabFinishTitle.Text = "已创建房间"
-            LabFinishDesc.Text = $"把邀请码发给朋友，让大家加入房间吧！{vbCrLf}邀请码：{GetInviteCode()}"
+            LabFinishDesc.Text = $"把邀请码发给朋友，让大家加入房间吧！{vbCrLf}邀请码：{GetInviteCode()}{vbCrLf}邀请码等同于房间钥匙，请只在可信的群聊中分享。"
             BtnFinishExit.Text = "关闭"
             BtnFinishPing.ToolTip = "网络延迟"
             BtnFinishCopy.Visibility = Visibility.Visible

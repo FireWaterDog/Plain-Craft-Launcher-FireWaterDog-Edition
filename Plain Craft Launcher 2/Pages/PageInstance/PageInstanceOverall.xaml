@@ -86,6 +86,7 @@
                         <local:MyButton x:Name="BtnManageDelete" Text="删除版本" MinWidth="140" Padding="13,0" Margin="0,0,20,0" Grid.Column="2" ColorType="Red" />
                         <local:MyButton x:Name="BtnManageBackup" Text="备份快照" MinWidth="140" Padding="13,0" Margin="0,0,20,0" Grid.Row="1" ToolTip="将当前版本的完整文件夹复制为一份快照，保存在游戏目录的 _PCL_Backup 文件夹中，可随时回滚。&#xa;版本隔离的实例会连 Mod、存档等一并备份。" />
                         <local:MyButton x:Name="BtnManageRollback" Text="回滚快照" MinWidth="140" Padding="13,0" Margin="0,0,20,0" Grid.Row="1" Grid.Column="1" ColorType="Red" ToolTip="从已有的快照恢复版本。当前版本会被移入回收站。" />
+                        <local:MyButton x:Name="BtnManageRepair" Text="一键修复" MinWidth="140" Padding="13,0" Margin="0,0,20,0" Grid.Row="1" Grid.Column="2" ColorType="Highlight" ToolTip="检查版本 Json、主 Jar、支持库与资源文件的完整性，并自动重新下载缺失或损坏的部分。&#xa;比「补全文件」额外检查了版本 Json 与主 Jar。" />
                     </Grid>
                 </StackPanel>
             </local:MyCard>
