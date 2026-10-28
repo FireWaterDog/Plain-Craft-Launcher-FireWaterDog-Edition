@@ -18,6 +18,7 @@ Public Class Settings
         New Setting("HintUpdateMod", False, Source:=Sources.Registry),
         New Setting("LinkLastCode", "", Source:=Sources.Registry, Encrypted:=True),
         New Setting("LinkRoomHistory", "", Source:=Sources.Registry, Encrypted:=True),
+        New Setting("PluginPythonPath", "", Source:=Sources.Registry),
         New Setting("HintCustomCommand", False, Source:=Sources.Registry),
         New Setting("HintCustomWarn", False, Source:=Sources.Registry),
         New Setting("HintMoreAdvancedSetup", False, Source:=Sources.Registry),

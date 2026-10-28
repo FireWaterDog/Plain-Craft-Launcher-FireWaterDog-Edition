@@ -253,14 +253,46 @@ Public Class PageOtherTest
                 For Each ButtonDef In Plugin.Buttons
                     Dim NewButton As New MyButton With {.Text = ButtonDef.Text, .Height = 35, .Margin = New Thickness(0, 0, 0, 8), .HorizontalAlignment = HorizontalAlignment.Left}
                     If Not String.IsNullOrWhiteSpace(ButtonDef.ToolTip) Then NewButton.ToolTip = ButtonDef.ToolTip
+                    Dim CapturedPlugin = Plugin
                     Dim CapturedButton = ButtonDef
-                    AddHandler NewButton.Click, Sub(s, args) ModPlugin.ExecuteButton(CapturedButton)
+                    AddHandler NewButton.Click, Sub(s, args) ModPlugin.ExecuteButton(CapturedPlugin, CapturedButton)
                     Stack.Children.Add(NewButton)
                 Next
                 PanPlugins.Children.Add(Card)
             Next
+            '插件管理（即使没有插件也显示，方便打开目录放入插件）
+            Dim ManageCard As New MyCard With {.Title = "插件管理", .Margin = New Thickness(0, 0, 0, 15)}
+            Dim ManageInner As New StackPanel With {.Margin = New Thickness(21, 40, 21, 16)}
+            ManageCard.Children.Add(ManageInner)
+            Dim ManageRow As New StackPanel With {.Orientation = Orientation.Horizontal}
+            Dim BtnPluginReload As New MyButton With {.Text = "重新加载", .Height = 35, .Margin = New Thickness(0, 0, 10, 0)}
+            AddHandler BtnPluginReload.Click, Sub(s, e) BuildPluginCards()
+            Dim BtnPluginFolder As New MyButton With {.Text = "打开插件目录", .Height = 35}
+            AddHandler BtnPluginFolder.Click, Sub(s, e) OpenPluginFolder()
+            ManageRow.Children.Add(BtnPluginReload)
+            ManageRow.Children.Add(BtnPluginFolder)
+            ManageInner.Children.Add(ManageRow)
+            Dim ManageHint As New TextBlock
+            ManageHint.Text = "插件放在 PCL\Plugins\ 下：.pclfePlugin 为 Python 插件包（含 plugin.json 与 main.py），.json 为旧版声明式插件。"
+            ManageHint.TextWrapping = TextWrapping.Wrap
+            ManageHint.Opacity = 0.7
+            ManageHint.Margin = New Thickness(0, 12, 0, 0)
+            ManageInner.Children.Add(ManageHint)
+            PanPlugins.Children.Add(ManageCard)
         Catch ex As Exception
             Logger.Warn(ex, "构建插件卡片失败")
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 打开插件目录（不存在则创建）。
+    ''' </summary>
+    Private Sub OpenPluginFolder()
+        Try
+            DirectoryUtils.Create(ModPlugin.PluginFolder)
+            OpenExplorer(ModPlugin.PluginFolder)
+        Catch ex As Exception
+            Logger.Warn(ex, "打开插件目录失败")
         End Try
     End Sub
 
