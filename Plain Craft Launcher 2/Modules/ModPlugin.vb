@@ -35,6 +35,8 @@ Public Module ModPlugin
         Public Property Folder As String = ""
         ''' <summary>插件原始文件路径。</summary>
         Public Property SourcePath As String = ""
+        ''' <summary>是否为启动器内置插件（无对应文件，不可删除）。</summary>
+        Public Property IsBuiltIn As Boolean = False
         Public Property Buttons As New List(Of PluginButton)
 
         Public ReadOnly Property IsPython As Boolean
@@ -85,6 +87,12 @@ Public Module ModPlugin
             Next
         Catch ex As Exception
             Logger.Warn(ex, "读取插件目录失败")
+        End Try
+        '内置插件（始终存在，不可删除）
+        Try
+            Result.Insert(0, GetBuiltInPlugin())
+        Catch ex As Exception
+            Logger.Warn(ex, "加载内置插件失败")
         End Try
         Return Result
     End Function
@@ -211,6 +219,18 @@ Public Module ModPlugin
                 Case "command"
                     If String.IsNullOrEmpty(Value) Then Throw New Exception("按钮未填写命令")
                     System.Diagnostics.Process.Start(New System.Diagnostics.ProcessStartInfo(Value) With {.UseShellExecute = True})
+                Case "file"
+                    If String.IsNullOrEmpty(Value) Then Throw New Exception("按钮未填写文件路径")
+                    If FileUtils.Exists(Value) Then
+                        OpenExplorer(Value)
+                        Return
+                    End If
+                    Dim ParentFolder As String = IO.Path.GetDirectoryName(Value)
+                    If Not String.IsNullOrEmpty(ParentFolder) AndAlso DirectoryUtils.Exists(ParentFolder) Then
+                        OpenExplorer(ParentFolder)
+                        Return
+                    End If
+                    Throw New Exception("文件不存在：" & Value)
                 Case "hint"
                     Hint(Value, HintType.Blue)
                 Case Else
@@ -321,5 +341,49 @@ Public Module ModPlugin
         End Try
         Return Nothing
     End Function
+
+    ''' <summary>
+    ''' 内置插件：不需要任何文件，始终可用。
+    ''' </summary>
+    Private Function GetBuiltInPlugin() As PluginDefinition
+        Dim Def As New PluginDefinition With {
+            .Name = "系统工具",
+            .Version = "1.0.0",
+            .Author = "PCLFE",
+            .Description = "启动器内置插件，提供日志等常用入口。",
+            .IsBuiltIn = True
+        }
+        Def.Buttons.Add(New PluginButton With {.Text = "打开启动日志", .Type = "file", .Value = Paths.Base & "PCL\Log1.txt", .ToolTip = "打开最近一次启动的日志文件；若不存在则打开日志目录"})
+        Def.Buttons.Add(New PluginButton With {.Text = "打开日志文件夹", .Type = "folder", .Value = Paths.Base & "PCL\"})
+        Return Def
+    End Function
+
+    ''' <summary>已禁用的插件名称列表。</summary>
+    Public Function GetDisabledNames() As List(Of String)
+        Try
+            Dim Raw As String = Settings.Get(Of String)("PluginDisabled")
+            If String.IsNullOrEmpty(Raw) Then Return New List(Of String)
+            Return Raw.Split({"¨"}, StringSplitOptions.RemoveEmptyEntries).ToList()
+        Catch
+            Return New List(Of String)
+        End Try
+    End Function
+
+    ''' <summary>插件是否被禁用。</summary>
+    Public Function IsDisabled(PluginName As String) As Boolean
+        Return GetDisabledNames().Contains(PluginName)
+    End Function
+
+    ''' <summary>设置插件启用状态。</summary>
+    Public Sub SetDisabled(PluginName As String, Disabled As Boolean)
+        Try
+            Dim Names As List(Of String) = GetDisabledNames()
+            Names.RemoveAll(Function(Item) Item = PluginName)
+            If Disabled Then Names.Add(PluginName)
+            Settings.Set("PluginDisabled", Names.Join("¨"))
+        Catch ex As Exception
+            Logger.Warn(ex, "保存插件启用状态失败")
+        End Try
+    End Sub
 
 End Module

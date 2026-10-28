@@ -236,7 +236,9 @@ Public Class PageOtherTest
     Private Sub BuildPluginCards()
         Try
             PanPlugins.Children.Clear()
-            For Each Plugin In ModPlugin.LoadAll()
+            Dim AllPlugins As List(Of ModPlugin.PluginDefinition) = ModPlugin.LoadAll()
+            For Each Plugin In AllPlugins
+                If ModPlugin.IsDisabled(Plugin.Name) Then Continue For
                 Dim Card As New MyCard With {.Title = Plugin.Name, .Margin = New Thickness(0, 0, 0, 15)}
                 Dim Stack As New StackPanel With {.Margin = New Thickness(21, 40, 21, 16)}
                 Card.Children.Add(Stack)
@@ -278,9 +280,57 @@ Public Class PageOtherTest
             ManageHint.Opacity = 0.7
             ManageHint.Margin = New Thickness(0, 12, 0, 0)
             ManageInner.Children.Add(ManageHint)
+            '插件列表
+            For Each Plugin In AllPlugins
+                Dim ItemRow As New StackPanel With {.Orientation = Orientation.Horizontal, .Margin = New Thickness(0, 10, 0, 0)}
+                Dim NameText As New TextBlock
+                NameText.Text = Plugin.Name & "  v" & Plugin.Version & If(Plugin.IsBuiltIn, "（内置）", If(Plugin.IsPython, "（Python）", "（声明式）"))
+                NameText.Width = 320
+                NameText.VerticalAlignment = VerticalAlignment.Center
+                NameText.TextTrimming = TextTrimming.CharacterEllipsis
+                ItemRow.Children.Add(NameText)
+                Dim EnabledCheck As New MyCheckBox With {.Text = "启用", .Checked = Not ModPlugin.IsDisabled(Plugin.Name), .VerticalAlignment = VerticalAlignment.Center}
+                Dim CapturedName As String = Plugin.Name
+                Dim CapturedCheck As MyCheckBox = EnabledCheck
+                AddHandler EnabledCheck.Change, Sub(s, user)
+                    If Not user Then Return
+                    ModPlugin.SetDisabled(CapturedName, Not CapturedCheck.Checked)
+                    BuildPluginCards()
+                End Sub
+                ItemRow.Children.Add(EnabledCheck)
+                If Not Plugin.IsBuiltIn Then
+                    Dim BtnRemove As New MyButton With {.Text = "删除", .Height = 26, .Margin = New Thickness(12, 0, 0, 0)}
+                    Dim CapturedPluginDef = Plugin
+                    AddHandler BtnRemove.Click, Sub(s, e) DeletePlugin(CapturedPluginDef)
+                    ItemRow.Children.Add(BtnRemove)
+                End If
+                ManageInner.Children.Add(ItemRow)
+            Next
             PanPlugins.Children.Add(ManageCard)
         Catch ex As Exception
             Logger.Warn(ex, "构建插件卡片失败")
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 删除插件（内置插件不可删除）。
+    ''' </summary>
+    Private Sub DeletePlugin(Plugin As ModPlugin.PluginDefinition)
+        If Plugin Is Nothing OrElse Plugin.IsBuiltIn Then Return
+        If MyMsgBox($"确定要删除插件「{Plugin.Name}」吗？{vbCrLf}插件文件以及该插件解压出的目录都会被删除。",
+                    "删除插件", "删除", "取消", IsWarn:=True) <> 1 Then Return
+        Try
+            If Not String.IsNullOrEmpty(Plugin.SourcePath) AndAlso FileUtils.Exists(Plugin.SourcePath) Then
+                FileUtils.Delete(Plugin.SourcePath)
+            End If
+            If Not String.IsNullOrEmpty(Plugin.Folder) AndAlso DirectoryUtils.Exists(Plugin.Folder) Then
+                DirectoryUtils.Delete(Plugin.Folder)
+            End If
+            ModPlugin.SetDisabled(Plugin.Name, False)
+            Hint("已删除插件：" & Plugin.Name, HintType.Green)
+            BuildPluginCards()
+        Catch ex As Exception
+            Logger.Error(ex, "删除插件失败", LogBehavior.Alert)
         End Try
     End Sub
 

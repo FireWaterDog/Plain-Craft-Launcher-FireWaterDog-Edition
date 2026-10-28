@@ -264,6 +264,19 @@ Public Module ModWatcher
             Try
                 If GameProcess.HasExited Then Return
                 If IsWindowFinished Then Return
+                '远古版本（Pre-Classic / Classic / Indev / Infdev / Alpha / Beta）的窗口类名与标题都不稳定，
+                '常常完全匹配不上下面的类名白名单，导致启动器一直停在“启动中”。这里做超时兜底。
+                If State = MinecraftState.Loading AndAlso Instance.Version.Drop = 209 Then
+                    Try
+                        If Not GameProcess.HasExited AndAlso (Date.Now - GameProcess.StartTime).TotalSeconds > 15 Then
+                            WatcherLog("远古版本窗口信息不稳定，进程已运行 15 秒，视为启动成功")
+                            IsWindowFinished = True
+                            State = MinecraftState.Running
+                            Return
+                        End If
+                    Catch
+                    End Try
+                End If
                 '获取全部窗口，检查是否有新增的
                 Dim MinecraftWindow As KeyValuePair(Of IntPtr, String)? = Nothing
                 Try
@@ -281,6 +294,11 @@ Public Module ModWatcher
                     WindowHandle = MinecraftWindowHandle
                     WatcherLog($"Minecraft 窗口已加载：{MinecraftWindowName}（{MinecraftWindowHandle.ToInt64}）")
                     IsWindowFinished = True
+                    '远古版本没有标准日志，窗口出现即视为启动成功，否则会一直卡在“启动中”
+                    If State = MinecraftState.Loading AndAlso Instance.Version.Drop = 209 Then
+                        WatcherLog("远古版本无标准启动日志，窗口出现即视为启动成功")
+                        State = MinecraftState.Running
+                    End If
                     '最大化
                     If Settings.Get(Of Integer)("LaunchArgumentWindowType") = 4 Then
                         RunInNewThread(
