@@ -289,11 +289,11 @@ Public Module ModPlugin
             Dim PathVar As String = Environment.GetEnvironmentVariable("PATH")
             If Not String.IsNullOrEmpty(PathVar) Then
                 Dim Names As String() = {"python.exe", "python3.exe"}
-                For Each Dir In PathVar.Split(";"c)
-                    If String.IsNullOrWhiteSpace(Dir) Then Continue For
-                    For Each Name In Names
+                For Each PathEntry In PathVar.Split(";"c)
+                    If String.IsNullOrWhiteSpace(PathEntry) Then Continue For
+                    For Each ExeName In Names
                         Try
-                            Dim Full As String = IO.Path.Combine(Dir.Trim(), Name)
+                            Dim Full As String = IO.Path.Combine(PathEntry.Trim(), ExeName)
                             If IO.File.Exists(Full) Then Return Full
                         Catch
                         End Try

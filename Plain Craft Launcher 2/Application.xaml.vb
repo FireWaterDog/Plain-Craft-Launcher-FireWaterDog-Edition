@@ -232,6 +232,8 @@ RetryCacheCheck:
             End Function, LazyThreadSafetyMode.ExecutionAndPublication))
             Return LazyAssembly.Value
         End Function
+        '提前释放原生加载器，保证 WebView2 可用（本地 bin 内有托管 dll 时不会触发 AssemblyResolve）
+        ExtractWebView2Loader()
     End Sub
     Private Shared Sub ExtractLibwebp() '这个方法会调用 ModBase，进而调用 MeloongCore，所以不能放在 New 里
         '原生库统一释放到 PCL 子目录，避免散落在 exe 旁边
@@ -246,6 +248,7 @@ RetryCacheCheck:
     End Sub
     Private Shared Sub ExtractWebView2Loader()
         'WebView2Loader.dll 是原生库，无法通过 Assembly.Load 加载，必须释放到 PCL 子目录
+        '这里不使用 Logger，以免在 MeloongCore 尚未加载时触发额外依赖
         Try
             Dim DepDir As String = IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "PCL")
             IO.Directory.CreateDirectory(DepDir)
@@ -255,8 +258,7 @@ RetryCacheCheck:
                 If Data IsNot Nothing Then IO.File.WriteAllBytes(Target, Data)
             End If
             SetDllDirectory(DepDir)
-        Catch ex As Exception
-            Logger.Warn(ex, "写入 WebView2Loader.dll 失败")
+        Catch
         End Try
     End Sub
     Private Declare Function SetDllDirectory Lib "kernel32" Alias "SetDllDirectoryA" (lpPathName As String) As Boolean
