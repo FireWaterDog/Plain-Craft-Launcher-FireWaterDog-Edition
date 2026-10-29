@@ -48,7 +48,13 @@ Friend Class GrandProject
         Try
             Dim M As Text.RegularExpressions.Match =
                 Text.RegularExpressions.Regex.Match(Json, """" & Key & """\s*:\s*""([^""]*)""")
-            If M.Success Then Return M.Groups(1).Value
+            If M.Success Then
+                '反转义，保证 Windows 路径可用
+                Dim Value As String = M.Groups(1).Value
+                Value = Value.Replace("\\", "\")
+                Value = Value.Replace("\/", "/")
+                Return Value
+            End If
         Catch
         End Try
         Return ""

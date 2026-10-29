@@ -103,6 +103,16 @@ plugin.dll      编译产物
 
 启动器解压到 `PCL\Plugins\<包名>\` 后加载；`plugin.dll` 以字节方式读取，不会占用文件，因此可以直接覆盖更新或删除。
 
+## 配套的插件编制器
+
+`PluginEditor/` 里有一个图形化编制器（`PluginEditor.exe`），面向同一套工程格式：
+
+- 以工程为单位管理**多个 .vb 文件**（新建 / 删除 / 切换编辑，Tab 缩进四个空格）
+- 新建工程时自动写出 `plugin.json`（清单）与 `grand.json`（指向启动器 exe）
+- 直接调用 `grand build / pack / install`，输出显示在窗口底部的日志里
+
+编制器会在自身目录、`grand\`、上级目录中查找 `grand.exe`，所以先运行本目录的 `build.bat` 即可。
+
 ## 兼容性
 
 启动器同时保留对旧格式的支持：
