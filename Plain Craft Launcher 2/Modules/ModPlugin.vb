@@ -159,8 +159,14 @@ Public Module ModPlugin
             NeedUnpack = True
         End If
         If NeedUnpack Then
+            '插件更新会重建解压目录，先把 data 目录挪出去，解压完再放回来，避免插件数据丢失
+            Dim DataFolder As String = IO.Path.Combine(Target, "data")
+            Dim DataBackup As String = PluginFolder & "." & FolderName & ".data\"
+            Dim HasData As Boolean = DirectoryUtils.Exists(DataFolder)
+            If HasData Then DirectoryUtils.Move(DataFolder, DataBackup)
             If DirectoryUtils.Exists(Target) Then DirectoryUtils.Delete(Target)
             FileUtils.ExtractToDirectory(PackagePath, Target)
+            If HasData AndAlso DirectoryUtils.Exists(DataBackup) Then DirectoryUtils.Move(DataBackup, DataFolder)
             Try
                 FileUtils.Write(Marker, Stamp)
             Catch

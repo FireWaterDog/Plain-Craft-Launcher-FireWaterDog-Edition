@@ -1,37 +1,37 @@
-''' <summary>
-''' 插件接口层（ABI v1）。
-''' 插件的编写语言与启动器一致，均为 VB.NET：编译为 plugin.dll 后放进 PCL\Plugins\ 即可被加载。
-''' 本文件中的所有签名只使用 System.* 类型，插件工程只需引用 启动器 exe 就能编译，无需引用 WPF 等其它程序集。
-'''
-''' 最小插件示例：
-''' <code>
-''' Imports PCL.PluginApi
-'''
-''' Public Class HelloPlugin
-'''     Inherits PluginBase
-'''
-'''     Public Overrides ReadOnly Property Name As String
-'''         Get
-'''             Return "示例插件"
-'''         End Get
-'''     End Property
-'''
-'''     Public Overrides ReadOnly Property Description As String
-'''         Get
-'''             Return "演示用插件"
-'''         End Get
-'''     End Property
-'''
-'''     Public Overrides Function GetActions() As IEnumerable(Of PluginAction)
-'''         Return New PluginAction() {New PluginAction("hello", "打个招呼")}
-'''     End Function
-'''
-'''     Public Overrides Sub Execute(ActionId As String)
-'''         Host.Hint("你好，世界！")
-'''     End Sub
-''' End Class
-''' </code>
-''' </summary>
+' <summary>
+' 插件接口层（ABI v1）。
+' 插件的编写语言与启动器一致，均为 VB.NET：编译为 plugin.dll 后放进 PCL\Plugins\ 即可被加载。
+' 本文件中的所有签名只使用 System.* 类型，插件工程只需引用 启动器 exe 就能编译，无需引用 WPF 等其它程序集。
+'
+' 最小插件示例：
+' <code>
+' Imports PCL.PluginApi
+'
+' Public Class HelloPlugin
+'     Inherits PluginBase
+'
+'     Public Overrides ReadOnly Property Name As String
+'         Get
+'             Return "示例插件"
+'         End Get
+'     End Property
+'
+'     Public Overrides ReadOnly Property Description As String
+'         Get
+'             Return "演示用插件"
+'         End Get
+'     End Property
+'
+'     Public Overrides Function GetActions() As IEnumerable(Of PluginAction)
+'         Return New PluginAction() {New PluginAction("hello", "打个招呼")}
+'     End Function
+'
+'     Public Overrides Sub Execute(ActionId As String)
+'         Host.Hint("你好，世界！")
+'     End Sub
+' End Class
+' </code>
+' </summary>
 Namespace PluginApi
 
     ''' <summary>接口层版本等信息。</summary>
