@@ -29,7 +29,7 @@ Public Class PageSetupPlugin
                 Row.ColumnDefinitions.Add(New ColumnDefinition With {.Width = GridLength.Auto})
                 '名称与类型
                 Dim InfoText As New TextBlock
-                InfoText.Text = Plugin.Name & "  v" & Plugin.Version & If(Plugin.IsBuiltIn, "（内置）", If(Plugin.IsPython, "（Python）", "（声明式）"))
+                InfoText.Text = Plugin.Name & "  v" & Plugin.Version & "（" & ModPlugin.GetKindName(Plugin) & "）"
                 InfoText.TextTrimming = TextTrimming.CharacterEllipsis
                 InfoText.VerticalAlignment = VerticalAlignment.Center
                 Grid.SetColumn(InfoText, 0)
@@ -72,6 +72,7 @@ Public Class PageSetupPlugin
         If MyMsgBox($"确定要删除插件「{Plugin.Name}」吗？{vbCrLf}插件文件以及该插件解压出的目录都会被删除。",
                     "删除插件", "删除", "取消", IsWarn:=True) <> 1 Then Return
         Try
+            ModPlugin.ForgetPlugin(Plugin)
             If Not String.IsNullOrEmpty(Plugin.SourcePath) AndAlso FileUtils.Exists(Plugin.SourcePath) Then
                 FileUtils.Delete(Plugin.SourcePath)
             End If

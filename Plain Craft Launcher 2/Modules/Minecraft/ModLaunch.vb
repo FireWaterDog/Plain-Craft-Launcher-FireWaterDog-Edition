@@ -2219,6 +2219,13 @@ IgnoreCustomSkin:
     Private Sub McLaunchEnd()
         McLaunchLog("开始启动结束处理")
 
+        '通知插件：游戏已启动
+        Try
+            ModPlugin.NotifyGameStarted(McInstanceSelected.Name)
+        Catch ex As Exception
+            Logger.Warn(ex, "通知插件游戏启动事件失败")
+        End Try
+
         '暂停或开始音乐播放
         If Settings.Get(Of Boolean)("UiMusicStop") Then
             RunInUi(Sub() If MusicPause() Then Logger.Info("已根据设置，在启动后暂停音乐播放"))

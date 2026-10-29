@@ -348,3 +348,7 @@ MaskFiles/
 
 # 插件编写器（本地工具，不上传）
 PluginEditor/
+
+# grand 构建工具产物与插件包
+grand/grand.exe
+*.pclfePlugin

@@ -107,6 +107,12 @@ Public Module ModWatcher
                         Next
                     Loop
                     If State = MinecraftState.Crashed Then WatcherStateChanged()
+                    '通知插件：游戏已退出
+                    Try
+                        ModPlugin.NotifyGameExited(Instance.Name)
+                    Catch ex As Exception
+                        Logger.Warn(ex, "通知插件游戏退出事件失败")
+                    End Try
                     WatcherLog("Minecraft 日志监控已退出")
                 Catch ex As Exception
                     Logger.Error(ex, "Minecraft 日志监控主循环出错")

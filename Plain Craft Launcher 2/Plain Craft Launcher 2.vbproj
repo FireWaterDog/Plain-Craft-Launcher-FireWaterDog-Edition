@@ -394,6 +394,8 @@
     <Compile Include="Pages\PageSetup\PageSetupLaunch.xaml.vb">
       <DependentUpon>PageSetupLaunch.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Modules\Plugin\PluginApi.vb" />
+    <Compile Include="Modules\Plugin\PluginHostImpl.vb" />
     <Compile Include="Pages\PageSetup\PageSetupSystem.xaml.vb">
       <DependentUpon>PageSetupSystem.xaml</DependentUpon>
     </Compile>

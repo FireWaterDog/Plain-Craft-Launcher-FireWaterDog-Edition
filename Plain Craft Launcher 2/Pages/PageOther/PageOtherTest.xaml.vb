@@ -275,7 +275,7 @@ Public Class PageOtherTest
             ManageRow.Children.Add(BtnPluginFolder)
             ManageInner.Children.Add(ManageRow)
             Dim ManageHint As New TextBlock
-            ManageHint.Text = "插件放在 PCL\Plugins\ 下：.pclfePlugin 为 Python 插件包（含 plugin.json 与 main.py），.json 为旧版声明式插件。"
+            ManageHint.Text = "插件放在 PCL\Plugins\ 下：.pclfePlugin 为 VB.NET 插件包（含 plugin.json 与 plugin.dll，用 grand 工具构建），也兼容旧版 Python 插件包与 .json 声明式插件。"
             ManageHint.TextWrapping = TextWrapping.Wrap
             ManageHint.Opacity = 0.7
             ManageHint.Margin = New Thickness(0, 12, 0, 0)
@@ -284,7 +284,7 @@ Public Class PageOtherTest
             For Each Plugin In AllPlugins
                 Dim ItemRow As New StackPanel With {.Orientation = Orientation.Horizontal, .Margin = New Thickness(0, 10, 0, 0)}
                 Dim NameText As New TextBlock
-                NameText.Text = Plugin.Name & "  v" & Plugin.Version & If(Plugin.IsBuiltIn, "（内置）", If(Plugin.IsPython, "（Python）", "（声明式）"))
+                NameText.Text = Plugin.Name & "  v" & Plugin.Version & "（" & ModPlugin.GetKindName(Plugin) & "）"
                 NameText.Width = 320
                 NameText.VerticalAlignment = VerticalAlignment.Center
                 NameText.TextTrimming = TextTrimming.CharacterEllipsis
@@ -320,6 +320,7 @@ Public Class PageOtherTest
         If MyMsgBox($"确定要删除插件「{Plugin.Name}」吗？{vbCrLf}插件文件以及该插件解压出的目录都会被删除。",
                     "删除插件", "删除", "取消", IsWarn:=True) <> 1 Then Return
         Try
+            ModPlugin.ForgetPlugin(Plugin)
             If Not String.IsNullOrEmpty(Plugin.SourcePath) AndAlso FileUtils.Exists(Plugin.SourcePath) Then
                 FileUtils.Delete(Plugin.SourcePath)
             End If

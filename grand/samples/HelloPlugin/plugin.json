@@ -1,0 +1,7 @@
+{
+  "name": "示例插件",
+  "version": "1.0.0",
+  "author": "PCLFE",
+  "description": "演示 VB.NET 插件的基本写法：按钮、宿主能力与游戏事件。",
+  "entry": "plugin.dll"
+}
