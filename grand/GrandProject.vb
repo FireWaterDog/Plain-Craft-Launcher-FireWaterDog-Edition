@@ -178,6 +178,16 @@ Friend Class GrandProject
             "/r:" & Quote(IO.Path.Combine(Framework, "System.Core.dll")),
             "/r:" & Quote(PclExe)
         }
+        '常用框架程序集：存在就引用，方便插件自己画界面（WinForms / WPF）
+        For Each DllName In New String() {"System.Windows.Forms.dll", "System.Drawing.dll", "System.Xaml.dll"}
+            Dim Full As String = IO.Path.Combine(Framework, DllName)
+            If IO.File.Exists(Full) Then Arguments.Add("/r:" & Quote(Full))
+        Next
+        Dim WpfFolder As String = IO.Path.Combine(Framework, "WPF")
+        For Each DllName In New String() {"PresentationCore.dll", "PresentationFramework.dll", "WindowsBase.dll"}
+            Dim Full As String = IO.Path.Combine(WpfFolder, DllName)
+            If IO.File.Exists(Full) Then Arguments.Add("/r:" & Quote(Full))
+        Next
         '自动引用启动器目录下的其它程序集，便于插件使用 Newtonsoft.Json 等已有依赖
         For Each Dll In IO.Directory.GetFiles(IO.Path.GetDirectoryName(PclExe), "*.dll")
             If Not IsManagedAssembly(Dll) Then Continue For
