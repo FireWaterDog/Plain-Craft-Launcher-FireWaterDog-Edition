@@ -3,6 +3,8 @@ Public Class PageSetupLeft
     Private IsLoad As Boolean = False
     Private IsPageSwitched As Boolean = False '如果在 Loaded 前切换到其他页面，会导致触发 Loaded 时再次切换一次
     Private Sub PageSetupLeft_Loaded(sender As Object, e As RoutedEventArgs) Handles Me.Loaded
+        '插件入口受土豆码控制，先刷新可见性
+        RefreshPluginItem()
         '是否处于隐藏的子页面
         Dim IsHiddenPage As Boolean = False
         If ItemLaunch.Checked AndAlso Settings.Get(Of Boolean)("UiHiddenSetupLaunch") Then IsHiddenPage = True
@@ -31,6 +33,19 @@ Public Class PageSetupLeft
     End Sub
     Private Sub PageOtherLeft_Unloaded(sender As Object, e As RoutedEventArgs) Handles Me.Unloaded
         IsPageSwitched = False
+    End Sub
+
+    ''' <summary>
+    ''' 按土豆码解锁状态显示或隐藏「插件 Beta」入口；已锁定时若正停在插件页则退回启动页。
+    ''' </summary>
+    Public Sub RefreshPluginItem()
+        Dim Unlocked As Boolean = Settings.Get(Of Boolean)("PluginButtonsVisible")
+        ItemPlugin.Visibility = If(Unlocked, Visibility.Visible, Visibility.Collapsed)
+        If Unlocked Then Return
+        If PageID <> FormMain.PageSubType.SetupPlugin Then Return
+        If Not IsLoad Then Return
+        ItemLaunch.SetChecked(True, False, False)
+        PageChange(FormMain.PageSubType.SetupLaunch)
     End Sub
 
 #Region "页面切换"

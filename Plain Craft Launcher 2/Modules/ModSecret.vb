@@ -362,6 +362,11 @@ Friend Module ModSecret
         If String.Equals(Code.Trim(), ModPlugin.PotatoCode, StringComparison.OrdinalIgnoreCase) Then
             Settings.Set("PluginButtonsVisible", True)
             Hint("土豆码正确，插件管理已解锁", HintType.Green)
+            Try
+                If FrmSetupLeft IsNot Nothing Then FrmSetupLeft.RefreshPluginItem()
+            Catch ex As Exception
+                Logger.Warn(ex, "刷新插件入口失败")
+            End Try
         Else
             Hint("土豆码不正确", HintType.Red)
         End If

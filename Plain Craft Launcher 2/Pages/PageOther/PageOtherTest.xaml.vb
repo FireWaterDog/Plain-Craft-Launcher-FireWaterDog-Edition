@@ -282,6 +282,11 @@ Public Class PageOtherTest
                                                 Settings.Set("PluginButtonsVisible", False)
                                                 Hint("插件已隐藏", HintType.Blue)
                                                 BuildPluginCards()
+                                                Try
+                                                    If FrmSetupLeft IsNot Nothing Then FrmSetupLeft.RefreshPluginItem()
+                                                Catch ex As Exception
+                                                    Logger.Warn(ex, "刷新插件入口失败")
+                                                End Try
                                             End Sub
             ManageRow.Children.Add(BtnPluginHide)
             ManageInner.Children.Add(ManageRow)
