@@ -6,12 +6,12 @@ Public Module ModBase
 #Region "声明"
 
     '下列版本信息由更新器自动修改
-    Public Const VersionBaseName As String = "3.0.0.2" '显示用版本名
+    Public Const VersionBaseName As String = "3.0.0.3" '显示用版本名
     Public Const CommitHash As String = "" 'Commit Hash，由 GitHub Workflow 自动替换
 #If RELEASE Then
-    Public Const VersionCode As Integer = 416 '正式版
+    Public Const VersionCode As Integer = 418 '正式版
 #Else
-    Public Const VersionCode As Integer = 417 '快照版
+    Public Const VersionCode As Integer = 419 '快照版
 #End If
 
     '版本信息
@@ -816,6 +816,19 @@ Public Module ModBase
         Dim NewProcess = StartProcess(New ProcessStartInfo(PathExe) With {.Verb = "runas", .Arguments = Argument})
         NewProcess.WaitForExit()
         Return NewProcess.ExitCode
+    End Function
+
+    ''' <summary>
+    ''' 检测当前进程是否以管理员权限运行。
+    ''' </summary>
+    Public Function IsProcessElevated() As Boolean
+        Try
+            Dim Identity As Security.Principal.WindowsIdentity = Security.Principal.WindowsIdentity.GetCurrent()
+            Return New Security.Principal.WindowsPrincipal(Identity).IsInRole(Security.Principal.WindowsBuiltInRole.Administrator)
+        Catch ex As Exception
+            Logger.Warn(ex, "检测管理员权限失败")
+            Return False
+        End Try
     End Function
 
     Private Uuid As Integer = 1

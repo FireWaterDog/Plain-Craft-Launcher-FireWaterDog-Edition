@@ -8,12 +8,16 @@ Public Class PageOtherTest
     Private Declare Function SetProcessWorkingSetSize Lib "kernel32" (hProcess As IntPtr, dwMinimumWorkingSetSize As IntPtr, dwMaximumWorkingSetSize As IntPtr) As Boolean
 
     ''' <summary>
-    ''' 内存优化。强制回收托管内存，并把暂不使用的物理内存归还操作系统。
+    ''' 内存优化。强制回收托管内存，并把所有应用暂不使用的物理内存归还操作系统。
+    ''' 清理其他应用需要对应的进程权限，无权限的进程会被跳过（以管理员权限运行时可清理更多）。
     ''' </summary>
     ''' <param name="ShowHint">是否显示提示。</param>
     Public Shared Sub MemoryOptimize(ShowHint As Boolean)
         Dim Before As Long = 0
         Dim After As Long = 0
+        Dim OthersFreed As Long = 0
+        Dim CleanedCount As Integer = 0
+        Dim SkippedCount As Integer = 0
         Try
             '记录优化前的物理内存（工作集）
             Try
@@ -49,14 +53,41 @@ Public Class PageOtherTest
             Catch
             End Try
 
+            '清理所有应用的缓存：遍历全部进程，把暂不使用的物理内存归还操作系统
+            '无权限的进程（如系统服务）会被跳过；以管理员权限运行时可以清理更多进程
+            Dim CurrentId As Integer = 0
+            Try : CurrentId = System.Diagnostics.Process.GetCurrentProcess().Id : Catch : End Try
+            For Each P As System.Diagnostics.Process In System.Diagnostics.Process.GetProcesses()
+                Try
+                    Using P
+                        If P.Id <= 4 OrElse P.Id = CurrentId Then Continue For '跳过系统空闲进程与自身
+                        Dim ProcBefore As Long = P.WorkingSet64
+                        If ProcBefore <= 0 Then Continue For
+                        Dim Ok As Boolean = EmptyWorkingSet(P.Handle)
+                        If Not Ok Then Ok = SetProcessWorkingSetSize(P.Handle, New IntPtr(-1), New IntPtr(-1))
+                        If Ok Then
+                            P.Refresh()
+                            If P.WorkingSet64 < ProcBefore Then OthersFreed += ProcBefore - P.WorkingSet64
+                            CleanedCount += 1
+                        Else
+                            SkippedCount += 1
+                        End If
+                    End Using
+                Catch
+                    SkippedCount += 1 '无权限访问的进程
+                End Try
+            Next
+
             '组装提示与日志
+            Dim SelfFreed As Long = Math.Max(0, Before - After)
+            Dim FreedMb As Long = SelfFreed \ 1024 \ 1024 + OthersFreed \ 1024 \ 1024
             Dim Msg As String
-            If Before > 0 AndAlso After > 0 Then
-                Dim BeforeMb As Long = Before \ 1024 \ 1024
-                Dim AfterMb As Long = After \ 1024 \ 1024
-                Dim FreedMb As Long = BeforeMb - AfterMb
-                If FreedMb < 0 Then FreedMb = 0
-                Logger.Info($"内存优化完成：工作集 {BeforeMb} MB → {AfterMb} MB，释放约 {FreedMb} MB")
+            If CleanedCount > 0 OrElse SkippedCount > 0 Then
+                Logger.Info($"内存优化完成：启动器自身释放约 {SelfFreed \ 1024} KB，已清理 {CleanedCount} 个应用（释放约 {OthersFreed \ 1024 \ 1024} MB），跳过 {SkippedCount} 个无权限进程")
+                Msg = $"内存优化完成！已清理 {CleanedCount} 个应用，共释放约 {FreedMb} MB。"
+                If SkippedCount > 0 Then Msg &= vbCrLf & $"有 {SkippedCount} 个进程因权限不足被跳过，以管理员身份运行可清理更多。"
+            ElseIf Before > 0 AndAlso After > 0 Then
+                Logger.Info($"内存优化完成：工作集 {Before \ 1024 \ 1024} MB → {After \ 1024 \ 1024} MB，释放约 {FreedMb} MB")
                 Msg = $"内存优化完成！已回收托管内存并把暂不使用的物理内存归还系统，释放约 {FreedMb} MB。"
             Else
                 Logger.Info("内存优化完成（未能读取工作集数据）")

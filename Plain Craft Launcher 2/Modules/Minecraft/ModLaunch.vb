@@ -212,10 +212,29 @@ NextInner:
     Private Sub McLaunchMemoryOptimize(Loader As LoaderTask(Of Integer, Integer))
         McLaunchLog("内存优化开始")
         Dim Finished As Boolean = False
+        Dim FreedKb As Long = -1
         RunInNewThread(
         Sub()
-            PageOtherTest.MemoryOptimize(False)
-            Finished = True
+            Try
+                If IsProcessElevated() Then
+                    '已有管理员权限：直接清理所有应用的内存
+                    PageOtherTest.MemoryOptimize(False)
+                    FreedKb = 0
+                Else
+                    '需要管理员权限才能清理更多应用：弹出 UAC 授权，以 --memory 参数运行一个管理员副本进行清理
+                    '该副本返回值为清理的内存量（KB）；用户取消授权或运行失败会抛出异常
+                    FreedKb = RunAsAdmin("--memory")
+                End If
+            Catch ex As Exception
+                Logger.Warn(ex, "启动前内存优化（管理员权限）失败，回退为普通权限")
+                Try
+                    PageOtherTest.MemoryOptimize(False) '回退：无管理员权限时至少清理启动器自身
+                    FreedKb = 0
+                Catch
+                End Try
+            Finally
+                Finished = True
+            End Try
         End Sub, "Launch Memory Optimize")
         Do While Not Finished AndAlso Not Loader.IsCanceled
             If Loader.Progress < 0.7 Then
@@ -225,6 +244,14 @@ NextInner:
             End If
             Thread.Sleep(100)
         Loop
+        If Loader.IsCanceled Then Return
+        If FreedKb > 0 Then
+            McLaunchLog($"内存优化完成，释放约 {FreedKb \ 1024} MB 内存")
+        ElseIf FreedKb = 0 Then
+            McLaunchLog("内存优化完成")
+        Else
+            McLaunchLog("内存优化未能完成，继续启动游戏")
+        End If
     End Sub
 
 #End Region
