@@ -79,6 +79,11 @@ Public Module ModPlugin
     End Class
 
     ''' <summary>
+    ''' 土豆码：在 设置 → 启动器 → 输入土豆码 中输入后，解锁被隐藏的插件管理。
+    ''' </summary>
+    Public Const PotatoCode As String = "FireWaterDog"
+
+    ''' <summary>
     ''' 插件目录：PCL\Plugins\。
     ''' </summary>
     Public ReadOnly Property PluginFolder As String

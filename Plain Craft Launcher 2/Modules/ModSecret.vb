@@ -357,6 +357,14 @@ Friend Module ModSecret
     End Property
 
     Public Sub InputPotatoCode(IsUpdating As Boolean)
+        Dim Code As String = MyMsgBoxInput("输入土豆码", Text:="土豆码正确后会解锁隐藏的插件管理入口。", HintText:="土豆码")
+        If Code Is Nothing Then Return
+        If String.Equals(Code.Trim(), ModPlugin.PotatoCode, StringComparison.OrdinalIgnoreCase) Then
+            Settings.Set("PluginButtonsVisible", True)
+            Hint("土豆码正确，插件管理已解锁", HintType.Green)
+        Else
+            Hint("土豆码不正确", HintType.Red)
+        End If
     End Sub
     Friend Sub GeneratePotatoCode()
     End Sub

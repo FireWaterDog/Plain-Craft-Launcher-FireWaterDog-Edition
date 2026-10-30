@@ -226,9 +226,6 @@ Public Class PageOtherTest
 
 #Region "插件"
 
-    ''' <summary>土豆码：在插件管理里输入后，重新显示所有插件按钮。</summary>
-    Private Const PotatoCode As String = "FireWaterDog"
-
     Private Sub PageOtherTest_Loaded(sender As Object, e As RoutedEventArgs) Handles Me.Loaded
         BuildPluginCards()
     End Sub
@@ -241,11 +238,8 @@ Public Class PageOtherTest
         Try
             PanPlugins.Children.Clear()
             Dim Unlocked As Boolean = Settings.Get(Of Boolean)("PluginButtonsVisible")
-            '未解锁时整块插件区域（含插件管理卡片）都隐藏，只留一枚土豆码入口
-            If Not Unlocked Then
-                AddPotatoEntry()
-                Return
-            End If
+            '未解锁时整块插件区域都隐藏；在 设置 → 启动器 → 输入土豆码 中解锁
+            If Not Unlocked Then Return
             Dim AllPlugins As List(Of ModPlugin.PluginDefinition) = ModPlugin.LoadAll()
             For Each Plugin In AllPlugins
                 If ModPlugin.IsDisabled(Plugin.Name) Then Continue For
@@ -327,35 +321,6 @@ Public Class PageOtherTest
         Catch ex As Exception
             Logger.Warn(ex, "构建插件卡片失败")
         End Try
-    End Sub
-
-    ''' <summary>
-    ''' 未解锁时的低调入口：整块插件区域隐藏，只留一个土豆码输入框。
-    ''' </summary>
-    Private Sub AddPotatoEntry()
-        Dim Panel As New StackPanel With {.Orientation = Orientation.Horizontal, .Margin = New Thickness(0, 8, 0, 8), .Opacity = 0.45}
-        Dim Box As New MyTextBox With {.HintText = "土豆码", .Width = 200, .Height = 30, .VerticalContentAlignment = VerticalAlignment.Center}
-        Dim Btn As New MyButton With {.Text = "确定", .Height = 30, .Margin = New Thickness(10, 0, 0, 0)}
-        AddHandler Btn.Click, Sub(s, e) TryUnlock(Box.Text)
-        AddHandler Box.KeyDown, Sub(s, e)
-                                    If e.Key = Key.Enter Then TryUnlock(Box.Text)
-                                End Sub
-        Panel.Children.Add(Box)
-        Panel.Children.Add(Btn)
-        PanPlugins.Children.Add(Panel)
-    End Sub
-
-    ''' <summary>
-    ''' 校验土豆码，正确则持久解锁并刷新插件按钮。
-    ''' </summary>
-    Private Sub TryUnlock(Code As String)
-        If String.Equals(If(Code, "").Trim(), PotatoCode, StringComparison.OrdinalIgnoreCase) Then
-            Settings.Set("PluginButtonsVisible", True)
-            Hint("插件管理已显示", HintType.Green)
-            BuildPluginCards()
-        Else
-            Hint("土豆码不正确", HintType.Red)
-        End If
     End Sub
 
     ''' <summary>
