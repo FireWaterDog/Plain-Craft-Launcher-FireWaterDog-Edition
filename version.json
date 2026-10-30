@@ -3,6 +3,6 @@
   "versionName": "3.0.0.2",
   "downloadUrl": "https://github.com/FireWaterDog/Plain-Craft-Launcher-FireWaterDog-Edition/releases/download/PCLFE/Plain.Craft.Launcher.2.exe",
   "changelog": "PCLFE 3.0.0.2：更新支持自动从 GitHub 下载，并校验更新包 SHA256",
-  "sha256": "",
+  "sha256": "44a0c0c24baeea6f00c5be47f660ddf2a6d6a7d5d298cae595de741428af0b78",
   "forceUpdate": false
 }
