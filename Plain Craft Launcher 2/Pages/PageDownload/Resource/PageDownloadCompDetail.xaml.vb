@@ -554,7 +554,7 @@ GroupDone:
                             End If
                             If VersionMatched.Any Then AllVersions = VersionMatched
                             '排序：优先正式版，其次按发布时间取最新
-                            Dim Dep = AllVersions.OrderByDescending(Function(v) v.ReleaseType = ReleaseTypes.Release).
+                            Dim Dep = AllVersions.OrderByDescending(Function(v) v.ReleaseType = ResourceVersion.ReleaseTypes.Release).
                                 ThenByDescending(Function(v) v.ReleaseDate).FirstOrDefault()
                             If Dep IsNot Nothing Then
                                 Dependencies.Add(Dep)
