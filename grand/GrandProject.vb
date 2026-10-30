@@ -117,6 +117,12 @@ Friend Class GrandProject
                     Dim Full As String = IO.Path.Combine(Dir.FullName, RelativePath)
                     If IO.File.Exists(Full) Then Return Full
                 Next
+                '顺带在 Plain Craft Launcher 2\bin 下递归找一次，兼容 bin\x64\Debug 这类输出目录
+                Dim BinDir As String = IO.Path.Combine(Dir.FullName, "Plain Craft Launcher 2\bin")
+                If IO.Directory.Exists(BinDir) Then
+                    Dim Hits As String() = IO.Directory.GetFiles(BinDir, "Plain Craft Launcher 2.exe", IO.SearchOption.AllDirectories)
+                    If Hits.Length > 0 Then Return Hits(0)
+                End If
                 Dir = Dir.Parent
                 Level += 1
             End While
@@ -150,8 +156,10 @@ Friend Class GrandProject
             Throw New Exception("未找到 vbc.exe，请先安装 .NET Framework 4.x（Windows 一般自带）。")
         End If
         If String.IsNullOrWhiteSpace(PclExe) OrElse Not IO.File.Exists(PclExe) Then
-            Throw New Exception("未找到启动器 exe。请用 --pcl ""路径\Plain Craft Launcher 2.exe"" 指定，或在工程目录旁放置 grand.json。" & vbCrLf &
-                                "                         例：{ ""pcl"": ""..\\Plain Craft Launcher 2\\bin\\Debug\\Plain Craft Launcher 2.exe"" }")
+            Throw New Exception("未找到启动器 exe（工程：" & Folder & "）。" & vbCrLf &
+                                "请用 --pcl ""路径\Plain Craft Launcher 2.exe"" 指定，或在工程目录的 grand.json 里写：" & vbCrLf &
+                                "{ ""pcl"": ""..\\Plain Craft Launcher 2\\bin\\Debug\\Plain Craft Launcher 2.exe"" }" & vbCrLf &
+                                "如果启动器还没有编译产物，请先在 Rider / Visual Studio 里生成一次。")
         End If
         '源文件
         Dim Sources As New List(Of String)
