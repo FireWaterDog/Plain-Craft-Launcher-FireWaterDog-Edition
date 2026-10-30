@@ -253,7 +253,7 @@ Friend Module ModSecret
                 If ShowNoUpdateHint Then RunInUi(Sub() Hint($"已是最新版本（{VersionDisplay}）", HintType.Green, False))
                 Return
             End If
-            Dim VersionName As String = If(Info("versionName") IsNot Nothing, Info("versionName").ToString, LatestCode.ToString)
+            Dim VersionName As String = If(Info("versionName") IsNot Nothing, Info("versionName").ToString, BestCode.ToString)
             Dim Changelog As String = If(Info("changelog") IsNot Nothing, Info("changelog").ToString, "")
             RunInUi(Sub()
                         If ShowNoUpdateHint Then
