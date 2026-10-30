@@ -226,19 +226,27 @@ Public Class PageOtherTest
 
 #Region "插件"
 
+    ''' <summary>土豆码：在插件管理里输入后，重新显示所有插件按钮。</summary>
+    Private Const PotatoCode As String = "FireWaterDog"
+
     Private Sub PageOtherTest_Loaded(sender As Object, e As RoutedEventArgs) Handles Me.Loaded
         BuildPluginCards()
     End Sub
 
     ''' <summary>
     ''' 根据 PCL\Plugins\ 下的插件定义生成卡片与按钮。
+    ''' 插件按钮默认隐藏，输入土豆码后才显示（可在设置里持久保存）。
     ''' </summary>
     Private Sub BuildPluginCards()
         Try
             PanPlugins.Children.Clear()
+            Dim Unlocked As Boolean = Settings.Get(Of Boolean)("PluginButtonsVisible")
             Dim AllPlugins As List(Of ModPlugin.PluginDefinition) = ModPlugin.LoadAll()
+            Dim AvailableCount As Integer = 0
             For Each Plugin In AllPlugins
                 If ModPlugin.IsDisabled(Plugin.Name) Then Continue For
+                AvailableCount += 1
+                If Not Unlocked Then Continue For
                 Dim Card As New MyCard With {.Title = Plugin.Name, .Margin = New Thickness(0, 0, 0, 15)}
                 Dim Stack As New StackPanel With {.Margin = New Thickness(21, 40, 21, 16)}
                 Card.Children.Add(Stack)
@@ -263,7 +271,7 @@ Public Class PageOtherTest
                 PanPlugins.Children.Add(Card)
             Next
             '插件管理（即使没有插件也显示，方便打开目录放入插件）
-            Dim ManageCard As New MyCard With {.Title = "插件管理", .Margin = New Thickness(0, 0, 0, 15)}
+            Dim ManageCard As New MyCard With {.Title = "插件管理 Beta", .Margin = New Thickness(0, 0, 0, 15)}
             Dim ManageInner As New StackPanel With {.Margin = New Thickness(21, 40, 21, 16)}
             ManageCard.Children.Add(ManageInner)
             Dim ManageRow As New StackPanel With {.Orientation = Orientation.Horizontal}
@@ -273,15 +281,41 @@ Public Class PageOtherTest
             AddHandler BtnPluginFolder.Click, Sub(s, e) OpenPluginFolder()
             ManageRow.Children.Add(BtnPluginReload)
             ManageRow.Children.Add(BtnPluginFolder)
+            If Unlocked Then
+                Dim BtnPluginHide As New MyButton With {.Text = "隐藏插件按钮", .Height = 35, .Margin = New Thickness(10, 0, 0, 0)}
+                AddHandler BtnPluginHide.Click, Sub(s, e)
+                                                    Settings.Set("PluginButtonsVisible", False)
+                                                    Hint("插件按钮已隐藏", HintType.Blue)
+                                                    BuildPluginCards()
+                                                End Sub
+                ManageRow.Children.Add(BtnPluginHide)
+            End If
             ManageInner.Children.Add(ManageRow)
             Dim ManageHint As New TextBlock
-            ManageHint.Text = "插件放在 PCL\Plugins\ 下：.pclfePlugin 为 VB.NET 插件包（含 plugin.json 与 plugin.dll，用 grand 工具构建），也兼容旧版 Python 插件包与 .json 声明式插件。"
+            If Unlocked Then
+                ManageHint.Text = "插件放在 PCL\Plugins\ 下：.pclfePlugin 为 VB.NET 插件包（含 plugin.json 与 plugin.dll，用 grand 工具构建），也兼容旧版 Python 插件包与 .json 声明式插件。"
+            Else
+                ManageHint.Text = "插件按钮已隐藏（已安装 " & AvailableCount & " 个）。输入土豆码后会重新显示。"
+            End If
             ManageHint.TextWrapping = TextWrapping.Wrap
             ManageHint.Opacity = 0.7
             ManageHint.Margin = New Thickness(0, 12, 0, 0)
             ManageInner.Children.Add(ManageHint)
-            '插件列表
-            For Each Plugin In AllPlugins
+            If Not Unlocked Then
+                Dim CodeRow As New StackPanel With {.Orientation = Orientation.Horizontal, .Margin = New Thickness(0, 12, 0, 0)}
+                Dim CodeBox As New MyTextBox With {.HintText = "土豆码", .Width = 220, .Height = 32, .VerticalContentAlignment = VerticalAlignment.Center}
+                Dim BtnUnlock As New MyButton With {.Text = "解锁", .Height = 32, .Margin = New Thickness(10, 0, 0, 0)}
+                AddHandler BtnUnlock.Click, Sub(s, e) TryUnlock(CodeBox.Text)
+                AddHandler CodeBox.KeyDown, Sub(s, e)
+                                                If e.Key = Key.Enter Then TryUnlock(CodeBox.Text)
+                                            End Sub
+                CodeRow.Children.Add(CodeBox)
+                CodeRow.Children.Add(BtnUnlock)
+                ManageInner.Children.Add(CodeRow)
+            End If
+            '插件列表（未解锁时不显示）
+            If Unlocked Then
+                For Each Plugin In AllPlugins
                 Dim ItemRow As New StackPanel With {.Orientation = Orientation.Horizontal, .Margin = New Thickness(0, 10, 0, 0)}
                 Dim NameText As New TextBlock
                 NameText.Text = Plugin.Name & "  v" & Plugin.Version & "（" & ModPlugin.GetKindName(Plugin) & "）"
@@ -305,11 +339,25 @@ Public Class PageOtherTest
                     ItemRow.Children.Add(BtnRemove)
                 End If
                 ManageInner.Children.Add(ItemRow)
-            Next
+                Next
+            End If
             PanPlugins.Children.Add(ManageCard)
         Catch ex As Exception
             Logger.Warn(ex, "构建插件卡片失败")
         End Try
+    End Sub
+
+    ''' <summary>
+    ''' 校验土豆码，正确则持久解锁并刷新插件按钮。
+    ''' </summary>
+    Private Sub TryUnlock(Code As String)
+        If String.Equals(If(Code, "").Trim(), PotatoCode, StringComparison.OrdinalIgnoreCase) Then
+            Settings.Set("PluginButtonsVisible", True)
+            Hint("插件按钮已重新显示", HintType.Green)
+            BuildPluginCards()
+        Else
+            Hint("土豆码不正确", HintType.Red)
+        End If
     End Sub
 
     ''' <summary>

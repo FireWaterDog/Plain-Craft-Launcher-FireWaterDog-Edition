@@ -20,6 +20,7 @@ Public Class Settings
         New Setting("LinkRoomHistory", "", Source:=Sources.Registry, Encrypted:=True),
         New Setting("PluginPythonPath", "", Source:=Sources.Registry),
         New Setting("PluginDisabled", "", Source:=Sources.Registry),
+        New Setting("PluginButtonsVisible", False, Source:=Sources.Registry),
         New Setting("HintCustomCommand", False, Source:=Sources.Registry),
         New Setting("HintCustomWarn", False, Source:=Sources.Registry),
         New Setting("HintMoreAdvancedSetup", False, Source:=Sources.Registry),
