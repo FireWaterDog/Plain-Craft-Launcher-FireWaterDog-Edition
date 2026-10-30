@@ -153,15 +153,15 @@ Friend Module ModSecret
     Friend IsUpdateWaitingRestart As Boolean = False
 
     ''' <summary>
-    ''' 更新检查用的版本信息源，按优先级排列：国内反代优先（内容实时），jsDelivr 次之（有缓存，可能滞后），官方源兜底。
+    ''' 更新检查用的版本信息源，按优先级排列。
+    ''' 全部使用无缓存的反代或官方源：CDN 类源（如 jsDelivr 的 @main）会缓存分支指向，
+    ''' 实测发布新版本后仍可能长时间返回旧内容，导致「明明有新版本却提示已是最新」。
     ''' </summary>
     Private Function GetUpdateVersionSources() As List(Of KeyValuePair(Of String, String))
         Return New List(Of KeyValuePair(Of String, String)) From {
             New KeyValuePair(Of String, String)("gh-proxy 加速", "https://gh-proxy.com/" & UpdateVersionUrlRaw),
             New KeyValuePair(Of String, String)("ghfast 加速", "https://ghfast.top/" & UpdateVersionUrlRaw),
-            New KeyValuePair(Of String, String)("jsDelivr（Fastly 节点）", "https://fastly.jsdelivr.net/gh/" & UpdateRepo & "@main/version.json"),
-            New KeyValuePair(Of String, String)("jsDelivr（Gcore 节点）", "https://gcore.jsdelivr.net/gh/" & UpdateRepo & "@main/version.json"),
-            New KeyValuePair(Of String, String)("jsDelivr", "https://cdn.jsdelivr.net/gh/" & UpdateRepo & "@main/version.json"),
+            New KeyValuePair(Of String, String)("ghproxy 加速", "https://ghproxy.net/" & UpdateVersionUrlRaw),
             New KeyValuePair(Of String, String)("GitHub 官方源", UpdateVersionUrlRaw)
         }
     End Function

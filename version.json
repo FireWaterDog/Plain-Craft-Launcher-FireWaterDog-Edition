@@ -1,8 +1,8 @@
 {
-  "versionCode": 419,
-  "versionName": "3.0.0.4",
+  "versionCode": 421,
+  "versionName": "3.0.0.5",
   "downloadUrl": "https://github.com/FireWaterDog/Plain-Craft-Launcher-FireWaterDog-Edition/releases/download/PCLFE/Plain.Craft.Launcher.2.exe",
-  "changelog": "PCLFE 3.0.0.4：新增多个更新源并自动故障转移，修复 CDN 缓存导致漏更，更新包下载镜像扩展到 4 个",
-  "sha256": "2d981053326bb90905e491b5c6d5ea8f29868063d1c2cf532aa70b0bc8dd7d37",
+  "changelog": "PCLFE 3.0.0.5：修复快照版版本号挡住正式版更新导致「有新版本却提示已是最新」；移除会缓存旧内容的 jsDelivr 更新源",
+  "sha256": "",
   "forceUpdate": false
 }
