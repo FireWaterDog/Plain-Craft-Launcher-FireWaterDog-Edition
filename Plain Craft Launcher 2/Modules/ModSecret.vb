@@ -146,12 +146,40 @@ Friend Module ModSecret
 #Region "更新"
 
     'PCLFE 自更新配置：版本信息从仓库根目录的 version.json 读取，更新包为 GitHub Release 中的启动器 exe。
-    '国内直连 raw.githubusercontent.com 常不可达，故优先走 jsDelivr CDN，失败后回退官方源。
+    '国内直连 raw.githubusercontent.com 常不可达，故配置了多条加速源与官方源，逐个尝试直到拿到有效版本信息。
+    '注意：ZStatic（s4.zstatic.net）只镜像 cdnjs 与 unpkg，不代理 GitHub，也不能存自定义文件，因此不能作为更新源。
     Private Const UpdateRepo As String = "FireWaterDog/Plain-Craft-Launcher-FireWaterDog-Edition"
-    Private Const UpdateVersionUrlJsdelivr As String = "https://cdn.jsdelivr.net/gh/" & UpdateRepo & "@main/version.json"
     Private Const UpdateVersionUrlRaw As String = "https://raw.githubusercontent.com/" & UpdateRepo & "/main/version.json"
 
     Friend IsUpdateWaitingRestart As Boolean = False
+
+    ''' <summary>
+    ''' 更新检查用的版本信息源，按优先级排列：国内反代优先（内容实时），jsDelivr 次之（有缓存，可能滞后），官方源兜底。
+    ''' </summary>
+    Private Function GetUpdateVersionSources() As List(Of KeyValuePair(Of String, String))
+        Return New List(Of KeyValuePair(Of String, String)) From {
+            New KeyValuePair(Of String, String)("gh-proxy 加速", "https://gh-proxy.com/" & UpdateVersionUrlRaw),
+            New KeyValuePair(Of String, String)("ghfast 加速", "https://ghfast.top/" & UpdateVersionUrlRaw),
+            New KeyValuePair(Of String, String)("jsDelivr（Fastly 节点）", "https://fastly.jsdelivr.net/gh/" & UpdateRepo & "@main/version.json"),
+            New KeyValuePair(Of String, String)("jsDelivr（Gcore 节点）", "https://gcore.jsdelivr.net/gh/" & UpdateRepo & "@main/version.json"),
+            New KeyValuePair(Of String, String)("jsDelivr", "https://cdn.jsdelivr.net/gh/" & UpdateRepo & "@main/version.json"),
+            New KeyValuePair(Of String, String)("GitHub 官方源", UpdateVersionUrlRaw)
+        }
+    End Function
+
+    ''' <summary>
+    ''' 为更新包地址生成候选下载源：原始 GitHub 地址优先，失败后逐个尝试国内加速镜像。
+    ''' </summary>
+    Private Function GetUpdateDownloadUrls(Url As String) As List(Of String)
+        Dim Result As New List(Of String) From {Url}
+        If Url.Contains("github.com") OrElse Url.Contains("githubusercontent.com") Then
+            For Each Mirror As String In {"https://gh-proxy.com/", "https://ghfast.top/", "https://mirror.ghproxy.com/", "https://ghproxy.net/"}
+                Dim Candidate As String = Mirror & Url
+                If Not Result.Contains(Candidate) Then Result.Add(Candidate)
+            Next
+        End If
+        Return Result
+    End Function
 
     ''' <summary>
     ''' 「设置 → 其他 → 检查更新」按钮触发：立即检查并提示。
@@ -191,30 +219,37 @@ Friend Module ModSecret
     ''' </summary>
     Private Sub CheckUpdate(ShowNoUpdateHint As Boolean)
         Try
-            '依次尝试多个更新源（jsDelivr CDN → GitHub 官方源）
-            Dim Raw As String = Nothing
+            '依次尝试多个更新源，取能拿到的最高版本号；任一源报告有更新即可提前结束
+            Dim BestInfo As JObject = Nothing
+            Dim BestCode As Integer = -1
+            Dim SuccessCount As Integer = 0
             Dim LastError As Exception = Nothing
-            For Each VersionUrl In {UpdateVersionUrlJsdelivr, UpdateVersionUrlRaw}
+            For Each Source In GetUpdateVersionSources()
                 Try
-                    Raw = NetRequestByClient(VersionUrl, RequireJson:=True)
-                    If Not String.IsNullOrWhiteSpace(Raw) Then Exit For
+                    Dim Raw As String = NetRequestByClient(Source.Value, RequireJson:=True)
+                    If String.IsNullOrWhiteSpace(Raw) Then Continue For
+                    Dim Fetched As JObject = Raw.DeserializeJson()
+                    If Fetched Is Nothing OrElse Fetched("versionCode") Is Nothing Then Continue For
+                    Dim FetchedCode As Integer = Fetched("versionCode").ToObject(Of Integer)
+                    SuccessCount += 1
+                    'jsDelivr 等 CDN 有缓存，可能返回旧版本；只有在更大时才覆盖，避免被滞后数据影响
+                    If FetchedCode > BestCode Then
+                        BestCode = FetchedCode
+                        BestInfo = Fetched
+                    End If
+                    If FetchedCode > VersionCode Then Exit For
                 Catch FetchEx As Exception
                     LastError = FetchEx
-                    Logger.Warn(FetchEx, $"获取版本信息失败（{VersionUrl}），尝试下一个源")
-                    Raw = Nothing
+                    Logger.Warn(FetchEx, $"获取版本信息失败（{Source.Key}：{Source.Value}），尝试下一个源")
                 End Try
             Next
-            If String.IsNullOrWhiteSpace(Raw) Then
+            If BestInfo Is Nothing Then
                 If LastError IsNot Nothing Then Throw LastError
                 Throw New Exception("所有更新源均未返回版本信息")
             End If
-            Dim Info As JObject = Raw.DeserializeJson()
-            If Info Is Nothing OrElse Info("versionCode") Is Nothing Then
-                If ShowNoUpdateHint Then RunInUi(Sub() Hint("检查更新失败：版本信息格式错误。", HintType.Red, False))
-                Return
-            End If
-            Dim LatestCode As Integer = Info("versionCode").ToObject(Of Integer)
-            If LatestCode <= VersionCode Then
+            Logger.Info($"更新检查完成：{SuccessCount} 个源返回有效数据，最新 versionCode={BestCode}")
+            Dim Info As JObject = BestInfo
+            If BestCode <= VersionCode Then
                 If ShowNoUpdateHint Then RunInUi(Sub() Hint($"已是最新版本（{VersionDisplay}）", HintType.Green, False))
                 Return
             End If
@@ -255,12 +290,8 @@ Friend Module ModSecret
                         Try
                             Dim TempExe As String = PathTemp & "Update\PCLFE-New.exe"
                             Try : System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(TempExe)) : Catch : End Try
-                            '依次尝试多个下载源（原始地址 → GitHub 加速镜像）
-                            Dim DownloadUrls As New List(Of String) From {Url}
-                            If Url.Contains("github.com") OrElse Url.Contains("githubusercontent.com") Then
-                                DownloadUrls.Add("https://mirror.ghproxy.com/" & Url)
-                                DownloadUrls.Add("https://ghfast.top/" & Url)
-                            End If
+                            '依次尝试多个下载源（原始地址 → 国内加速镜像），任一成功即停止
+                            Dim DownloadUrls As List(Of String) = GetUpdateDownloadUrls(Url)
                             Dim DownloadError As Exception = Nothing
                             Dim Downloaded As Boolean = False
                             For Each DownloadUrl In DownloadUrls
