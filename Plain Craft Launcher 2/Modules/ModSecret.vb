@@ -147,7 +147,6 @@ Friend Module ModSecret
 
     'PCLFE 自更新配置：版本信息从仓库根目录的 version.json 读取，更新包为 GitHub Release 中的启动器 exe。
     '国内直连 raw.githubusercontent.com 常不可达，故配置了多条加速源与官方源，逐个尝试直到拿到有效版本信息。
-    '注意：ZStatic（s4.zstatic.net）只镜像 cdnjs 与 unpkg，不代理 GitHub，也不能存自定义文件，因此不能作为更新源。
     Private Const UpdateRepo As String = "FireWaterDog/Plain-Craft-Launcher-FireWaterDog-Edition"
     Private Const UpdateVersionUrlRaw As String = "https://raw.githubusercontent.com/" & UpdateRepo & "/main/version.json"
 

@@ -12,7 +12,6 @@
 - **新增多个更新源，自动故障转移**：检查更新现在依次尝试 gh-proxy、ghfast、jsDelivr（Fastly / Gcore / 默认节点）、GitHub 官方源共 6 个源；任一源拿不到就换下一个，并在日志中记录每个源的结果。
 - **防止 CDN 缓存导致漏更**：jsDelivr 等 CDN 对 `@main` 有缓存，可能返回旧版本号；现在会取多个源中**最高**的 versionCode，避免刚发布的版本被缓存挡住而检测不到。
 - **更新包下载镜像扩容**：下载失败时依次尝试 gh-proxy、ghfast、mirror.ghproxy、ghproxy.net 四个加速镜像（原来只有两个）。
-- 关于 ZStatic（`s4.zstatic.net`）：经核实它只镜像 cdnjs 与 unpkg，官方明确「不提供 UGC 存储或分发服务」、也不代理 GitHub，因此无法用作 version.json 或更新包的源，本次未接入。
 
 ---
 
