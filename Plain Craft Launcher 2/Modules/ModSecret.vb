@@ -161,11 +161,24 @@ Friend Module ModSecret
     End Sub
 
     ''' <summary>
-    ''' 启动后后台检查：发现有新版本时弹窗提示，由用户手动确认下载。
+    ''' 启动后后台检查：发现有新版本时自动从 GitHub 下载，无需用户确认。
     ''' </summary>
     Friend Sub UpdateCheckAuto()
         RunInNewThread(Sub()
                            Try
+                               '上次已下载好但尚未安装的更新包：直接提示应用
+                               Dim PendingExe As String = PathTemp & "Update\PCLFE-New.exe"
+                               If FileUtils.Exists(PendingExe) Then
+                                   RunInUi(Sub()
+                                               If MyMsgBox("检测到已下载完成的 PCLFE 更新包，是否立即完成更新？", "PCLFE 更新", "立即更新", "取消") = 1 Then
+                                                   ApplyUpdate(PendingExe)
+                                               Else
+                                                   '用户明确拒绝时移除旧更新包，避免每次启动都提示
+                                                   Try : FileUtils.Delete(PendingExe) : Catch : End Try
+                                               End If
+                                           End Sub)
+                                   Return
+                               End If
                                System.Threading.Thread.Sleep(15000) '启动后稍等，避免打断初始化
                            Catch
                            End Try
@@ -208,9 +221,15 @@ Friend Module ModSecret
             Dim VersionName As String = If(Info("versionName") IsNot Nothing, Info("versionName").ToString, LatestCode.ToString)
             Dim Changelog As String = If(Info("changelog") IsNot Nothing, Info("changelog").ToString, "")
             RunInUi(Sub()
-                        Dim Msg As String = $"发现新版本：{VersionName}{vbCrLf}{vbCrLf}{If(Changelog = "", "（未提供更新说明）", Changelog)}"
-                        If MyMsgBox(Msg, "PCLFE 更新", "下载并更新", "取消", IsWarn:=False) = 1 Then
-                            UpdateDownloadAndApply(Info)
+                        If ShowNoUpdateHint Then
+                            Dim Msg As String = $"发现新版本：{VersionName}{vbCrLf}{vbCrLf}{If(Changelog = "", "（未提供更新说明）", Changelog)}"
+                            If MyMsgBox(Msg, "PCLFE 更新", "下载并更新", "取消", IsWarn:=False) = 1 Then
+                                UpdateDownloadAndApply(Info)
+                            End If
+                        Else
+                            '自动更新：发现新版本后直接从 GitHub 下载，无需用户确认
+                            Hint($"发现 PCLFE 新版本 {VersionName}，正在自动下载更新…", HintType.Blue, False)
+                            UpdateDownloadAndApply(Info, True)
                         End If
                     End Sub)
         Catch ex As Exception
@@ -220,15 +239,18 @@ Friend Module ModSecret
     End Sub
 
     ''' <summary>
-    ''' 下载更新包（启动器 exe）到临时目录，完成后替换自身并重启。
+    ''' 下载更新包（启动器 exe）到临时目录，完成后应用更新。
+    ''' AutoInstall 为 True 时（启动自动检查）下载完成后询问重启时机；
+    ''' 为 False 时（按钮手动触发）下载完成后立即替换并重启。
     ''' </summary>
-    Private Sub UpdateDownloadAndApply(Info As JObject)
+    Private Sub UpdateDownloadAndApply(Info As JObject, Optional AutoInstall As Boolean = False)
         Dim Url As String = If(Info("downloadUrl") IsNot Nothing, Info("downloadUrl").ToString, "")
+        Dim VersionName As String = If(Info("versionName") IsNot Nothing, Info("versionName").ToString, "")
         If String.IsNullOrEmpty(Url) Then
             RunInUi(Sub() Hint("更新包下载地址为空，无法更新。", HintType.Red, False))
             Return
         End If
-        RunInUi(Sub() Hint("正在下载 PCLFE 更新…", HintType.Blue, False))
+        If Not AutoInstall Then RunInUi(Sub() Hint("正在下载 PCLFE 更新…", HintType.Blue, False))
         RunInThread(Sub()
                         Try
                             Dim TempExe As String = PathTemp & "Update\PCLFE-New.exe"
@@ -255,9 +277,29 @@ Friend Module ModSecret
                                 If DownloadError IsNot Nothing Then Throw DownloadError
                                 Throw New Exception("所有下载源均失败")
                             End If
-                            RunInUi(Sub() Hint("更新已下载，正在重启以完成更新…", HintType.Green, False))
-                            System.Threading.Thread.Sleep(800)
-                            ApplyUpdate(TempExe)
+                            '校验更新包哈希（version.json 提供 sha256 字段时），防止下载损坏或被篡改
+                            Dim ExpectedHash As String = If(Info("sha256") IsNot Nothing, Info("sha256").ToString.Trim.Lower, "")
+                            If ExpectedHash.Length = 64 Then
+                                Dim ActualHash As String = CryptographyUtils.ComputeFileHash(TempExe, CryptographyUtils.HashMethod.Sha256).Lower()
+                                If ActualHash <> ExpectedHash Then
+                                    Throw New Exception("更新包 SHA256 校验失败，文件可能损坏，请稍后重试")
+                                End If
+                                Logger.Info("更新包 SHA256 校验通过：" & ActualHash)
+                            End If
+                            If AutoInstall Then
+                                RunInUi(Sub()
+                                            If MyMsgBox($"PCLFE {VersionName} 更新已下载完成，是否立即重启以完成更新？",
+                                                        "PCLFE 更新", "立即重启", "下次启动时自动更新") = 1 Then
+                                                ApplyUpdate(TempExe)
+                                            Else
+                                                Hint("更新包已就绪，下次启动 PCLFE 时将自动完成更新。", HintType.Green, False)
+                                            End If
+                                        End Sub)
+                            Else
+                                RunInUi(Sub() Hint("更新已下载，正在重启以完成更新…", HintType.Green, False))
+                                System.Threading.Thread.Sleep(800)
+                                ApplyUpdate(TempExe)
+                            End If
                         Catch ex As Exception
                             Logger.Warn(ex, "下载或应用 PCLFE 更新失败")
                             RunInUi(Sub() Hint("更新失败：" & ex.Message, HintType.Red, False))
