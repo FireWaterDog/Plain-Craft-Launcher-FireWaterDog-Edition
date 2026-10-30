@@ -1,7 +1,0 @@
-{
-  "name": "音乐列表",
-  "version": "1.0.0",
-  "author": "PCLFE",
-  "description": "扫描 PCL\\music 中的 MP3，弹出列表窗口播放。",
-  "entry": "plugin.dll"
-}
