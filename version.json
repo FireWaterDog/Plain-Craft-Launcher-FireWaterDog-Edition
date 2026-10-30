@@ -1,7 +1,7 @@
 {
-  "versionCode": 413,
-  "versionName": "3.0.0.0",
+  "versionCode": 414,
+  "versionName": "3.0.0.1",
   "downloadUrl": "https://github.com/FireWaterDog/Plain-Craft-Launcher-FireWaterDog-Edition/releases/download/PCLFE/Plain.Craft.Launcher.2.exe",
-  "changelog": "PCLFE 3.0.0.0",
+  "changelog": "PCLFE 3.0.0.1：修复自动下载前置时可能下载到错误加载器（Fabric/Forge）的 Mod",
   "forceUpdate": false
 }

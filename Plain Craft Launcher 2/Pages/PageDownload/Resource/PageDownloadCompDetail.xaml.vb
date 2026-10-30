@@ -507,16 +507,63 @@ GroupDone:
                 If File.ResourceType = ResourceTypes.Mod Then FileName = FileName.Replace("~", "-") '~ 会导致 Mixin 加载失败
                 '预先解析前置 Mod 的版本（在后台线程，避免卡 UI）
                 Dim Dependencies As List(Of ResourceVersion) = Nothing
+                Dim FailedDependencyCount As Integer = 0
+                Dim RequiredLoaders As ModLoaders = ModLoaders.None
                 If File.ResourceType = ResourceTypes.Mod AndAlso File.Dependencies.Any Then
                     Dependencies = New List(Of ResourceVersion)
+                    '确定本体 Mod 要求的加载器（前置的加载器必须与之匹配，否则会下载到错误加载器的前置）
+                    RequiredLoaders = If(File.ModLoaders <> ModLoaders.None, File.ModLoaders,
+                        If(Project.ModLoaders <> ModLoaders.None, Project.ModLoaders, TargetLoaders))
+                    Logger.Info($"解析前置 Mod：要求的加载器为 {If(RequiredLoaders = ModLoaders.None, "无", RequiredLoaders.ToString)}，本体游戏版本为 {If(File.GameVersions Is Nothing, "无", File.GameVersions.Join("，"))}")
                     For Each DepId As String In File.Dependencies
                         Try
-                            Dim Dep = ResourceVersion.FromProjectId(DepId, Project.Platform, LoadDependencies:=False).
-                                Where(Function(v) v.DownloadAvailable).
-                                Where(Function(v) v.GameVersions IsNot Nothing AndAlso (File.GameVersions Is Nothing OrElse v.GameVersions.Any(Function(g) File.GameVersions.Contains(g)))).
-                                OrderByDescending(Function(v) v.ReleaseDate).FirstOrDefault()
-                            If Dep IsNot Nothing Then Dependencies.Add(Dep)
+                            Dim AllVersions = ResourceVersion.FromProjectId(DepId, Project.Platform, LoadDependencies:=False).
+                                Where(Function(v) v.DownloadAvailable).ToList()
+                            '筛选 1：加载器匹配（前置未声明加载器时视为兼容）
+                            If RequiredLoaders <> ModLoaders.None Then
+                                Dim LoaderMatched = AllVersions.Where(
+                                    Function(v) v.ModLoaders = ModLoaders.None OrElse v.ModLoaders.Flags.Intersect(RequiredLoaders.Flags).Any).ToList
+                                If LoaderMatched.Any Then
+                                    AllVersions = LoaderMatched
+                                Else
+                                    Logger.Warn($"前置 {DepId} 没有加载器为 {RequiredLoaders} 的版本")
+                                End If
+                            End If
+                            '筛选 2：游戏版本精确匹配
+                            Dim VersionMatched = AllVersions.Where(
+                                Function(v) v.GameVersions IsNot Nothing AndAlso (File.GameVersions Is Nothing OrElse v.GameVersions.Any(Function(g) File.GameVersions.Contains(g)))).ToList
+                            '筛选 2 放宽：无精确匹配时，尝试同一大版本系列（例如本体为 1.21.1 时接受 1.21 的前置）
+                            If Not VersionMatched.Any AndAlso File.GameVersions IsNot Nothing Then
+                                Dim TargetDrops = File.GameVersions.Select(Function(g) McVersion.VersionToDrop(g)).
+                                    Where(Function(d) d <> 209).Distinct.ToList
+                                Dim SameSeries As Func(Of Integer, Boolean) =
+                                    Function(Drop)
+                                        If Drop = 209 Then Return False
+                                        If TargetDrops.Contains(Drop) Then Return True
+                                        '放宽：低于目标版本但在同一个小版本系列内（如 1.21 对 1.21.1）
+                                        Return TargetDrops.Any(Function(t) Drop < t AndAlso Drop >= (t \ 10) * 10)
+                                    End Function
+                                VersionMatched = AllVersions.Where(
+                                    Function(v) v.GameVersions IsNot Nothing AndAlso v.GameVersions.
+                                        Select(Function(g) McVersion.VersionToDrop(g)).Any(SameSeries)).ToList
+                                If VersionMatched.Any Then
+                                    Logger.Info($"前置 {DepId} 没有精确匹配的游戏版本，已放宽到同一大版本系列")
+                                Else
+                                    Logger.Warn($"前置 {DepId} 没有支持 {File.GameVersions.Join("，")} 的版本")
+                                End If
+                            End If
+                            If VersionMatched.Any Then AllVersions = VersionMatched
+                            '排序：优先正式版，其次按发布时间取最新
+                            Dim Dep = AllVersions.OrderByDescending(Function(v) v.ReleaseType = ReleaseTypes.Release).
+                                ThenByDescending(Function(v) v.ReleaseDate).FirstOrDefault()
+                            If Dep IsNot Nothing Then
+                                Dependencies.Add(Dep)
+                            Else
+                                FailedDependencyCount += 1
+                                Logger.Warn($"未能找到前置 {DepId} 的任何可下载版本")
+                            End If
                         Catch ex As Exception
+                            FailedDependencyCount += 1
                             Logger.Warn(ex, $"解析前置 {DepId} 失败")
                         End Try
                     Next
@@ -539,11 +586,18 @@ GroupDone:
                     }) With {.ProgressWeight = 6, .Block = True})
                     '自动补全前置 Mod
                     If Dependencies IsNot Nothing AndAlso Dependencies.Any Then
-                        If MyMsgBox($"该 Mod 需要 {Dependencies.Count} 个前置 Mod，是否一并下载？" & vbCrLf & "若前置缺失，Mod 可能无法正常加载。", "下载前置", "一并下载", "仅下载本体") = 1 Then
+                        '列出前置名称（最多 6 个，避免弹窗过长）
+                        Dim DepList As String = Dependencies.Select(Function(d) d.Display).Take(6).Join("，")
+                        If Dependencies.Count > 6 Then DepList &= " 等"
+                        Dim DepMsg As String = $"该 Mod 需要 {Dependencies.Count} 个前置 Mod：{DepList}。"
+                        If FailedDependencyCount > 0 Then DepMsg &= vbCrLf & $"注意：有 {FailedDependencyCount} 个前置未能自动找到匹配当前游戏版本与加载器的文件，需要手动下载。"
+                        DepMsg &= vbCrLf & "若前置缺失，Mod 可能无法正常加载。是否一并下载？"
+                        If MyMsgBox(DepMsg, "下载前置", "一并下载", "仅下载本体") = 1 Then
                             Dim DepFolder As String = PathUtils.RemoveLastPart(Target)
                             For Each Dep In Dependencies
                                 Loaders.Add(New LoaderDownload($"下载前置 {Dep.Display}", {
-                                    Dep.ToNetFile(Path.Combine(DepFolder, Dep.FileName), ResourceVersion.DownloadReason.Dependency)
+                                    Dep.ToNetFile(Path.Combine(DepFolder, Dep.FileName), ResourceVersion.DownloadReason.Dependency,
+                                        File.GameVersions?.FirstOrDefault, RequiredLoaders)
                                 }) With {.ProgressWeight = 3, .Block = False})
                             Next
                         End If
