@@ -36,7 +36,7 @@
                             <EllipseGeometry Center="17 17" RadiusX="17" RadiusY="17" />
                         </Image.Clip>
                     </Image>
-                    <local:MyButton Text="赞助 PCLFE !" Grid.Column="2" Grid.Row="0" Height="35" ColorType="Highlight"
+                    <local:MyButton Text="赞助 PCL !" Grid.Column="2" Grid.Row="0" Height="35" ColorType="Highlight"
                                     local:CustomEventService.EventType="打开网页" local:CustomEventService.EventData="https://meloong.com/afd/a/LTCat" />
                     <local:MyButton Text="检查更新" Grid.Column="2" Grid.Row="2" Height="35" 
                                     x:Name="BtnAboutUpdate" />
