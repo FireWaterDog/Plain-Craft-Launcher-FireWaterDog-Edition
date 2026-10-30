@@ -98,8 +98,15 @@ Module Program
 
     Private Function CommandPack(Options As CommandOptions) As Integer
         Dim Project As GrandProject = GrandProject.Load(Options.ProjectFolder)
+        '没编译过、或源码比产物新，就先构建一次
+        If Project.SourcesNewerThanOutput() Then
+            Dim PclExe As String = GrandProject.FindPclExe(Project.Folder, Options.GetValue("pcl", ""))
+            Console.WriteLine("尚未编译（或源码已更新），先构建…")
+            If Not Project.Build(PclExe) Then Return 1
+        End If
         Dim Package As String = Project.Pack()
         Console.WriteLine("[完成] 已打包 " & Package)
+        Console.WriteLine("       把该文件放进启动器的 PCL\Plugins\，重启启动器或到 设置 → 插件 点「重新加载」即可。")
         Return 0
     End Function
 

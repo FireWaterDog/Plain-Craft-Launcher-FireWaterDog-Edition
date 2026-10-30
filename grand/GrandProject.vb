@@ -147,6 +147,28 @@ Friend Class GrandProject
         Return ""
     End Function
 
+    ''' <summary>是否已经编译出 plugin.dll。</summary>
+    Public ReadOnly Property IsBuilt As Boolean
+        Get
+            Return IO.File.Exists(OutputDll)
+        End Get
+    End Property
+
+    ''' <summary>是否有源文件比产物更新（含尚未编译的情况）。</summary>
+    Public Function SourcesNewerThanOutput() As Boolean
+        If Not IsBuilt Then Return True
+        Try
+            Dim DllTime As Date = IO.File.GetLastWriteTime(OutputDll)
+            For Each File In IO.Directory.GetFiles(Folder, "*.vb", IO.SearchOption.AllDirectories)
+                If File.IndexOf("\bin\", StringComparison.OrdinalIgnoreCase) >= 0 Then Continue For
+                If File.IndexOf("\obj\", StringComparison.OrdinalIgnoreCase) >= 0 Then Continue For
+                If IO.File.GetLastWriteTime(File) > DllTime Then Return True
+            Next
+        Catch
+        End Try
+        Return False
+    End Function
+
     ''' <summary>
     ''' 编译插件工程，成功返回 True。
     ''' </summary>
