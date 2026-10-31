@@ -1222,4 +1222,48 @@ Public Class PageDownloadInstall
         End Select
     End Function
 
+#Region "LabyMod 客户端下载"
+
+    'LabyMod 官方安装包直链（Laby Launcher，Windows x64，官网下载页所引用）
+    Private Const LabyModSetupUrl As String = "https://releases.r2.labymod.net/launcher/win32/x64/LabyModLauncherSetup-latest.exe"
+    Private Const LabyModWebsiteUrl As String = "https://laby.net/client"
+
+    Private IsLabyModDownloading As Boolean = False
+
+    Private Sub BtnLabyModWebsite_Click(sender As Object, e As EventArgs) Handles BtnLabyModWebsite.Click
+        OpenWebsite(LabyModWebsiteUrl)
+    End Sub
+
+    ''' <summary>
+    ''' 下载 LabyMod 官方安装包到临时目录并自动运行安装程序。
+    ''' LabyMod 使用独立启动器管理游戏，因此这里只负责下载安装包，不参与版本安装流程。
+    ''' </summary>
+    Private Sub BtnLabyModDownload_Click(sender As Object, e As EventArgs) Handles BtnLabyModDownload.Click
+        If IsLabyModDownloading Then
+            Hint("LabyMod 安装包正在下载中，请稍候……", HintType.Blue, False)
+            Return
+        End If
+        If MyMsgBox("即将从 LabyMod 官方源下载安装包，完成后自动运行。" & vbCrLf & vbCrLf &
+                    "注意：LabyMod 使用官方独立启动器（Laby Launcher）启动游戏，" & vbCrLf &
+                    "安装后请在 LabyMod 启动器内选择 Minecraft 版本并登录正版账号。", "下载 LabyMod 客户端", "下载并运行", "取消") = 1 Then
+            RunInThread(Sub()
+                            IsLabyModDownloading = True
+                            Try
+                                Dim TempFile As String = PathTemp & "LabyModLauncherSetup.exe"
+                                Hint("正在下载 LabyMod 安装包……", HintType.Blue, False)
+                                NetDownloadByClient(LabyModSetupUrl, TempFile)
+                                Hint("LabyMod 安装包下载完成，正在启动安装程序……", HintType.Green, False)
+                                StartProcess(TempFile)
+                            Catch ex As Exception
+                                Logger.Warn(ex, "下载 LabyMod 安装包失败")
+                                Hint("下载 LabyMod 安装包失败：" & ex.Message & vbCrLf & "可点击卡片中的「打开官网」手动下载。", HintType.Red, False)
+                            Finally
+                                IsLabyModDownloading = False
+                            End Try
+                        End Sub)
+        End If
+    End Sub
+
+#End Region
+
 End Class

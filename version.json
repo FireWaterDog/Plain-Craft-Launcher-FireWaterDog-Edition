@@ -1,8 +1,8 @@
 {
-  "versionCode": 421,
-  "versionName": "3.0.0.5",
+  "versionCode": 423,
+  "versionName": "3.0.0.6",
   "downloadUrl": "https://github.com/FireWaterDog/Plain-Craft-Launcher-FireWaterDog-Edition/releases/download/PCLFE/Plain.Craft.Launcher.2.exe",
-  "changelog": "PCLFE 3.0.0.5：修复快照版版本号挡住正式版更新导致「有新版本却提示已是最新」；移除会缓存旧内容的 jsDelivr 更新源；赞助按钮文案改为「赞助 PCL」",
-  "sha256": "327fc9d05de5ef7b6efb4423193c2f2108dca793f979f1625b4c9ba2c3494626",
+  "changelog": "PCLFE 3.0.0.6：下载页原版游戏新增 LabyMod 客户端卡片，可一键下载并运行 LabyMod 官方安装包",
+  "sha256": "",
   "forceUpdate": false
 }

@@ -286,6 +286,23 @@
                         <local:MyIconButton x:Name="BtnOptiFabricClear" Style="{StaticResource ModifyClearButton}" Theme="Black" LogoScale="0.5" Logo="{StaticResource ModifyClearLogo}" />
                         <local:MyIconButton x:Name="BtnOptiFabricRestore" Style="{StaticResource ModifyRestoreButton}" Theme="Black" LogoScale="0.55" Logo="{StaticResource ModifyRestoreLogo}" />
                     </local:MyCard>
+                        <local:MyCard Title="LabyMod 客户端" Height="40" Margin="0,12,0,0" x:Name="CardLabyMod" IsSwapped="True" CanSwap="True" SwapLogoRight="True">
+                        <StackPanel Margin="20,40,18,15" VerticalAlignment="Top">
+                            <local:MyHint Theme="Yellow"
+                                          Text="LabyMod 使用官方独立启动器（Laby Launcher）管理并启动游戏：安装后请在 LabyMod 启动器中选择 Minecraft 版本进入游戏，本页仅提供安装包下载。&#xa;安装包不含作弊功能，需要正版账号登录。" />
+                            <Grid Margin="0,12,0,2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1*" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                           Text="LabyMod Launcher · Windows 官方安装包（支持 1.8.9 至最新正式版与快照版）" />
+                                <local:MyButton Grid.Column="1" x:Name="BtnLabyModDownload" Text="下载并运行安装包" Width="170" Height="32" Margin="10,0,0,0" ColorType="Highlight" />
+                                <local:MyButton Grid.Column="2" x:Name="BtnLabyModWebsite" Text="打开官网" Width="100" Height="32" Margin="10,0,0,0" />
+                            </Grid>
+                        </StackPanel>
+                    </local:MyCard>
                         <local:MyCard Title="LiteLoader" Height="40" Margin="0,12,0,0" x:Name="CardLiteLoader" IsSwapped="True" CanSwap="True" SwapLogoRight="True">
                         <StackPanel Margin="20,40,18,15" VerticalAlignment="Top" Name="PanLiteLoader" />
                         <Grid x:Name="PanLiteLoaderInfo" Height="18" Margin="132,11,15,0" VerticalAlignment="Top" Tag="True">
