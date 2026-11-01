@@ -208,6 +208,26 @@ Public Module ModDownload
     ''' </summary>
     Public DlClientListLoader As New LoaderTask(Of String, DlClientListResult)("DlClientList Main", AddressOf DlClientListMain)
     Private Sub DlClientListMain(Loader As LoaderTask(Of String, DlClientListResult))
+        '并行拉取「未列出版本（远古版）」清单：原先在主列表加载完成后才串行请求，
+        '而 github.io 在部分网络环境下不可达（最长 8 秒超时），是版本列表加载缓慢的主要原因。
+        '现改为与主源加载同时进行，主列表就绪后最多只等待 5 秒，超时则先显示主列表内容。
+        Dim UnlistedFetch As System.Threading.Tasks.Task(Of JObject) = Nothing
+        Try
+            UnlistedFetch = System.Threading.Tasks.Task.Run(Function() As JObject
+                For Each Url As String In {
+                    "https://zkitefly.github.io/unlisted-versions-of-minecraft/version_manifest.json",
+                    "https://raw.githubusercontent.com/zkitefly/unlisted-versions-of-minecraft/main/version_manifest.json",
+                    "https://gh-proxy.com/https://raw.githubusercontent.com/zkitefly/unlisted-versions-of-minecraft/main/version_manifest.json"}
+                    Try
+                        Dim Fetched = NetRequestByClient(Url, Timeout:=6000, RequireJson:=True).DeserializeJson()
+                        If Fetched IsNot Nothing AndAlso Fetched("versions") IsNot Nothing Then Return Fetched
+                    Catch
+                    End Try
+                Next
+                Return Nothing
+            End Function)
+        Catch
+        End Try
         Select Case Settings.Get(Of Integer)("ToolDownloadVersion")
             Case 0
                 DlSourceLoader(Loader, New List(Of KeyValuePair(Of LoaderTask(Of String, DlClientListResult), Integer)) From {
@@ -215,10 +235,19 @@ Public Module ModDownload
                     New KeyValuePair(Of LoaderTask(Of String, DlClientListResult), Integer)(DlClientListMojangLoader, 30 + 60)
                 }, Loader.IsForceRestarting)
             Case 1
-                DlSourceLoader(Loader, New List(Of KeyValuePair(Of LoaderTask(Of String, DlClientListResult), Integer)) From {
-                    New KeyValuePair(Of LoaderTask(Of String, DlClientListResult), Integer)(DlClientListMojangLoader, 5),
-                    New KeyValuePair(Of LoaderTask(Of String, DlClientListResult), Integer)(DlClientListBmclapiLoader, 5 + 30)
-                }, Loader.IsForceRestarting)
+                '「优先使用官方源」：但若本次会话已实测 Mojang 官方源缓慢（DlMojangMeasured = 2），
+                '则直接换用镜像源优先，避免每次都先白等官方源超时（#PCLFE：加载版本列表很慢）
+                If DlMojangMeasured = 2 Then
+                    DlSourceLoader(Loader, New List(Of KeyValuePair(Of LoaderTask(Of String, DlClientListResult), Integer)) From {
+                        New KeyValuePair(Of LoaderTask(Of String, DlClientListResult), Integer)(DlClientListBmclapiLoader, 30),
+                        New KeyValuePair(Of LoaderTask(Of String, DlClientListResult), Integer)(DlClientListMojangLoader, 30 + 60)
+                    }, Loader.IsForceRestarting)
+                Else
+                    DlSourceLoader(Loader, New List(Of KeyValuePair(Of LoaderTask(Of String, DlClientListResult), Integer)) From {
+                        New KeyValuePair(Of LoaderTask(Of String, DlClientListResult), Integer)(DlClientListMojangLoader, 5),
+                        New KeyValuePair(Of LoaderTask(Of String, DlClientListResult), Integer)(DlClientListBmclapiLoader, 5 + 30)
+                    }, Loader.IsForceRestarting)
+                End If
             Case Else
                 DlSourceLoader(Loader, New List(Of KeyValuePair(Of LoaderTask(Of String, DlClientListResult), Integer)) From {
                     New KeyValuePair(Of LoaderTask(Of String, DlClientListResult), Integer)(DlClientListMojangLoader, 60),
@@ -229,10 +258,17 @@ Public Module ModDownload
         '数据源为 Omniarchive / BetaCraft 等对旧版的归档整理，格式与官方 version_manifest.json 完全一致。
         '官方启动器不提供的 Alpha/Beta 早期版本、实验快照等会补充进"远古版"分类，可直接下载安装。
         Try
-            Dim Unlisted As JObject = NetRequestByClient("https://zkitefly.github.io/unlisted-versions-of-minecraft/version_manifest.json",
-                                                         Timeout:=8000, RequireJson:=True).DeserializeJson()
+            Dim Unlisted As JObject = Nothing
+            If UnlistedFetch IsNot Nothing Then
+                Try
+                    '主列表已就绪，最多再等待 5 秒；并行拉取通常在主列表加载期间就已完成，不额外增加耗时
+                    If UnlistedFetch.Wait(5000) Then Unlisted = UnlistedFetch.Result
+                Catch TaskEx As Exception
+                    Logger.Warn(TaskEx, "未列出版本（远古版）清单并行拉取失败")
+                End Try
+            End If
             Dim RootJson As JObject = Loader.Output.Value
-            If RootJson IsNot Nothing AndAlso RootJson("versions") IsNot Nothing AndAlso Unlisted("versions") IsNot Nothing Then
+            If Unlisted IsNot Nothing AndAlso RootJson IsNot Nothing AndAlso RootJson("versions") IsNot Nothing AndAlso Unlisted("versions") IsNot Nothing Then
                 Dim Versions As JArray = CType(RootJson("versions"), JArray)
                 Dim ExistIds As New HashSet(Of String)
                 For Each OldVersion As JObject In Versions
@@ -248,6 +284,8 @@ Public Module ModDownload
                     AddedCount += 1
                 Next
                 Logger.Info($"已合并 {AddedCount} 个未列出版本（远古版）")
+            Else
+                Logger.Info("未列出版本（远古版）清单不可用，将仅显示官方版本")
             End If
         Catch ex As Exception
             Logger.Warn(ex, "未列出版本（远古版）列表加载失败，将仅显示官方版本")
@@ -271,7 +309,14 @@ Public Module ModDownload
     Public DlClientListMojangLoader As New LoaderTask(Of String, DlClientListResult)("DlClientList Mojang", AddressOf DlClientListMojangMain)
     Private Sub DlClientListMojangMain(Loader As LoaderTask(Of String, DlClientListResult))
         Dim StartTime As Long = GetTimeMs()
-        Dim Json As JObject = NetRequestByClientRetry("https://launchermeta.mojang.com/mc/game/version_manifest.json", RequireJson:=True).DeserializeJson()
+        Dim Json As JObject = Nothing
+        Try
+            Json = NetRequestByClientRetry("https://launchermeta.mojang.com/mc/game/version_manifest.json", RequireJson:=True).DeserializeJson()
+        Catch FetchEx As Exception
+            '官方源彻底失败（超时 / 被墙）：标记为已测量且缓慢，使同一会话后续的版本列表加载直接换用镜像源
+            DlMojangMeasured = 2
+            Throw
+        End Try
         Try
             Dim Versions As JArray = Json("versions")
             If Versions.Count < 200 Then Throw New Exception("获取到的版本列表长度不足（" & Json.ToString & "）")
@@ -279,6 +324,7 @@ Public Module ModDownload
             If Not DlPreferMojang Then
                 Dim DeltaTime = GetTimeMs() - StartTime
                 DlPreferMojang = DeltaTime < 4000
+                DlMojangMeasured = If(DlPreferMojang, 1, 2) '记录测量结果，供版本列表源选择跳过缓慢的官方源
                 Logger.Info($"Mojang 官方源加载耗时：{DeltaTime}ms，{If(DlPreferMojang, "可优先使用官方源", "不优先使用官方源")}")
             End If
             '返回
@@ -1251,6 +1297,9 @@ Public Module ModDownload
 
 #Region "DlSource | 镜像下载源"
 
+    'Mojang 官方源速度测量结果：0 = 未测量，1 = 快（<4s），2 = 慢（≥4s 或依赖镜像）。
+    'DlPreferMojang 只有真假两态，无法区分「未测过」与「实测缓慢」，故额外记录本标记。
+    Private DlMojangMeasured As Integer = 0
     Private DlPreferMojang As Boolean = False
     ''' <summary>
     ''' 下载文件（而非获取版本列表）的时候，是否优先使用官方源。
