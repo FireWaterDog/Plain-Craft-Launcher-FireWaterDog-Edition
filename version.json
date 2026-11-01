@@ -3,6 +3,6 @@
   "versionName": "3.0.0.8",
   "downloadUrl": "https://github.com/FireWaterDog/Plain-Craft-Launcher-FireWaterDog-Edition/releases/download/PCLFE/Plain.Craft.Launcher.2.exe",
   "changelog": "PCLFE 3.0.0.8：移除 LabyMod 下载卡片；修复版本列表加载缓慢（远古版清单并行拉取、官方源实测缓慢后直接换镜像源）",
-  "sha256": "",
+  "sha256": "ebb5ff191c39070a59e1107c26a91c5e7216fa014f08752b4e83ccbd4f7dba13",
   "forceUpdate": false
 }
