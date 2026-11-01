@@ -193,6 +193,7 @@ Friend Module ModSecret
     Friend Sub UpdateCheckAuto()
         RunInNewThread(Sub()
                            Try
+                               UpdateCleanupLeftovers()
                                '上次已下载好但尚未安装的更新包：直接提示应用
                                Dim PendingExe As String = PathTemp & "Update\PCLFE-New.exe"
                                If FileUtils.Exists(PendingExe) Then
@@ -349,8 +350,33 @@ Friend Module ModSecret
         End If
         System.IO.File.Move(CurrentExe, Backup)
         System.IO.File.Copy(TempExe, CurrentExe, True)
+        '更新包已完成使命，自动移除安装包，避免残留在临时目录占用磁盘
+        Try
+            System.IO.File.Delete(TempExe)
+            Logger.Info("已移除已应用的更新安装包：" & TempExe)
+        Catch DelEx As Exception
+            Logger.Warn(DelEx, "移除更新安装包失败（不影响本次更新）")
+        End Try
         Try : System.Diagnostics.Process.Start(CurrentExe) : Catch : End Try
         Environment.Exit(0)
+    End Sub
+
+    ''' <summary>
+    ''' 清理上次更新遗留的文件：旧版本备份（当前 exe 同名的 .bak）。
+    ''' 更新时旧 exe 被重命名为 .bak，正在运行时 Windows 不允许删除该文件，
+    ''' 因此只能等新版本启动后再清理。
+    ''' </summary>
+    Friend Sub UpdateCleanupLeftovers()
+        Try
+            Dim CurrentExe As String = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName
+            Dim Backup As String = CurrentExe & ".bak"
+            If System.IO.File.Exists(Backup) Then
+                System.IO.File.Delete(Backup)
+                Logger.Info("已清理上次更新遗留的旧版本备份：" & Backup)
+            End If
+        Catch ex As Exception
+            Logger.Warn(ex, "清理更新遗留文件失败（不影响使用）")
+        End Try
     End Sub
 
     Public Sub UpdateRestart(TriggerRestartAndByEnd As Boolean)
