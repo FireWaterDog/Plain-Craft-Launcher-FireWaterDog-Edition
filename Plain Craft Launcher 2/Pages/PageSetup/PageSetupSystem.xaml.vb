@@ -5,6 +5,8 @@ Public Class PageSetupSystem
 
         '重复加载部分
         PanBack.ScrollToHome()
+        '每次进入本页都按设置值同步语言下拉框，避免显示与实际设置不一致
+        LanguageComboRefresh()
 
         If BuildType = BuildTypes.Release Then
             PanDonate.Visibility = Visibility.Collapsed
@@ -26,6 +28,7 @@ Public Class PageSetupSystem
     End Sub
     Public Sub Reload()
         SettingService.RefreshSettings(Me)
+        LanguageComboRefresh()
     End Sub
     Public Sub Reset()
         Try
@@ -126,6 +129,44 @@ Public Class PageSetupSystem
     End Sub
     Private Sub BtnSystemSettingImp_Click(sender As Object, e As MouseButtonEventArgs) Handles BtnSystemSettingImp.Click
         Hint("该功能尚在开发中！")
+    End Sub
+
+#End Region
+
+#Region "语言"
+
+    ''' <summary>
+    ''' 下拉框正在按设置值刷新时置为 True，避免把程序设置的选择当成用户操作再写回设置。
+    ''' </summary>
+    Private IsLanguageComboRefreshing As Boolean = False
+
+    ''' <summary>
+    ''' 按当前保存的设置值同步语言下拉框的选中项。
+    ''' 不使用 SettingService 的通用刷新，以避免字符串 / 数值比较与逻辑树遍历造成的错位。
+    ''' </summary>
+    Public Sub LanguageComboRefresh()
+        If ComboLanguage Is Nothing Then Return
+        Try
+            IsLanguageComboRefreshing = True
+            Dim Value As Integer = CInt(ModLang.LanguageSelected)
+            If Value < 0 OrElse Value >= ComboLanguage.Items.Count Then Value = 0
+            If ComboLanguage.SelectedIndex <> Value Then ComboLanguage.SelectedIndex = Value
+        Catch ex As Exception
+            Logger.Warn(ex, "同步语言下拉框失败")
+        Finally
+            IsLanguageComboRefreshing = False
+        End Try
+    End Sub
+
+    Private Sub ComboLanguage_SelectionChanged(sender As Object, e As SelectionChangedEventArgs)
+        If IsLanguageComboRefreshing Then Return
+        If ComboLanguage Is Nothing OrElse ComboLanguage.SelectedIndex < 0 Then Return
+        Try
+            Settings.Set("Language", ComboLanguage.SelectedIndex)
+            Logger.Info($"语言设置已保存：{ComboLanguage.SelectedIndex}（{ModLang.LanguageDisplayName}）")
+        Catch ex As Exception
+            Logger.Warn(ex, "保存语言设置失败")
+        End Try
     End Sub
 
 #End Region

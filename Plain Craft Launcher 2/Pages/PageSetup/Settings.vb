@@ -137,7 +137,7 @@ Public Class Settings
         New Setting("ToolUpdateReleaseLast", "", Source:=Sources.Registry),
         New Setting("ToolUpdateSnapshotLast", "", Source:=Sources.Registry),
         New Setting("UiLauncherTransparent", 600, OnChanged:=Sub(Value As Integer) If FrmMain IsNot Nothing Then FrmMain.Opacity = Value / 1000 + 0.4), '避免与 PCL1 设置冲突（UiLauncherOpacity）
-        New Setting("Language", 0, Source:=Sources.Registry, OnChanged:=AddressOf ModLang.LanguageOnSettingChanged),
+        New Setting("Language", 0, OnChanged:=AddressOf ModLang.LanguageOnSettingChanged),
         New Setting("UiLauncherHue", 180),
         New Setting("UiLauncherSat", 80),
         New Setting("UiLauncherDelta", 90),

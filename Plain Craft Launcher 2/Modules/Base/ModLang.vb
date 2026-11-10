@@ -9,7 +9,8 @@ Imports System.Windows.Threading
 ''' 
 ''' 实现方式是「按原文查表」：以简体中文原文为键，命中则替换为目标语言文案，
 ''' 未命中的文本保持原文，因此可以随时向词典里补充条目，而不会影响任何已有功能。
-''' 界面翻译通过遍历可视化树完成，不需要改动各处 XAML 与代码里的原始文案。
+''' 翻译对象既包括控件自身的文本属性（MyCard.Title、MyButton.Text 等，折叠内容也能覆盖），
+''' 也包括可视化树中已经渲染出来的 TextBlock，无需逐处修改 XAML 与代码里的原始文案。
 ''' </summary>
 Public Module ModLang
 
@@ -28,6 +29,10 @@ Public Module ModLang
         TraditionalChinese = 2
         ''' <summary>English。</summary>
         English = 3
+        ''' <summary>日本語。</summary>
+        Japanese = 4
+        ''' <summary>한국어。</summary>
+        Korean = 5
     End Enum
 
     ''' <summary>
@@ -37,7 +42,7 @@ Public Module ModLang
         Get
             Try
                 Dim Raw As Integer = Settings.Get(Of Integer)("Language")
-                If Raw < 0 OrElse Raw > CInt(LanguageType.English) Then Return LanguageType.FollowSystem
+                If Raw < 0 OrElse Raw > CInt(LanguageType.Korean) Then Return LanguageType.FollowSystem
                 Return CType(Raw, LanguageType)
             Catch
                 Return LanguageType.FollowSystem
@@ -57,8 +62,8 @@ Public Module ModLang
 
     ''' <summary>
     ''' 根据 Windows 系统语言推断界面语言。
-    ''' zh-Hans / zh-CN / zh-SG 等 → 简体中文；zh-Hant / zh-TW / zh-HK / zh-MO → 繁體中文；
-    ''' en-* → English；其余语言回退到简体中文。
+    ''' zh-Hans → 简体中文；zh-Hant / zh-TW / zh-HK / zh-MO → 繁體中文；ja → 日本語；ko → 한국어；
+    ''' en 及其他语言 → English（对非中文用户更友好，需要中文可手动切换）。
     ''' </summary>
     Public Function LanguageFromSystem() As LanguageType
         Try
@@ -69,21 +74,26 @@ Public Module ModLang
                 End If
                 Return LanguageType.SimplifiedChinese
             End If
+            If Name.StartsWith("ja") Then Return LanguageType.Japanese
+            If Name.StartsWith("ko") Then Return LanguageType.Korean
             If Name.StartsWith("en") Then Return LanguageType.English
-            Return LanguageType.SimplifiedChinese
+            '简体中文是原文，因此其他语言一律回退英文，避免出现看不懂的界面
+            Return LanguageType.English
         Catch
             Return LanguageType.SimplifiedChinese
         End Try
     End Function
 
     ''' <summary>
-    ''' 当前生效语言的显示名称，如「简体中文」。
+    ''' 当前生效语言的显示名称（用该语言自身书写）。
     ''' </summary>
     Public ReadOnly Property LanguageDisplayName As String
         Get
             Select Case LanguageEffective
                 Case LanguageType.TraditionalChinese : Return "繁體中文"
                 Case LanguageType.English : Return "English"
+                Case LanguageType.Japanese : Return "日本語"
+                Case LanguageType.Korean : Return "한국어"
                 Case Else : Return "简体中文"
             End Select
         End Get
@@ -97,6 +107,8 @@ Public Module ModLang
             Select Case LanguageEffective
                 Case LanguageType.TraditionalChinese : Return "zh-TW"
                 Case LanguageType.English : Return "en-US"
+                Case LanguageType.Japanese : Return "ja-JP"
+                Case LanguageType.Korean : Return "ko-KR"
                 Case Else : Return "zh-CN"
             End Select
         End Get
@@ -111,7 +123,7 @@ Public Module ModLang
     Private _TranslationTableLanguage As LanguageType = LanguageType.SimplifiedChinese
 
     ''' <summary>
-    ''' 当前语言对应的翻译词典；简体中文返回 Nothing（无需翻译）。
+    ''' 当前语言对应的翻译词典；简体中文返回 Nothing（原文无需翻译）。
     ''' </summary>
     Private ReadOnly Property TranslationTable As Dictionary(Of String, String)
         Get
@@ -140,8 +152,10 @@ Public Module ModLang
         Dim Trimmed As String = Text.Trim()
         If Trimmed.Length = 0 OrElse Trimmed = Text Then Return Text
         If Table.TryGetValue(Trimmed, Result) Then
-            Return Text.Substring(0, Text.IndexOf(Trimmed, StringComparison.Ordinal)) & Result &
-                   Text.Substring(Text.IndexOf(Trimmed, StringComparison.Ordinal) + Trimmed.Length)
+            Dim StartIndex As Integer = Text.IndexOf(Trimmed, StringComparison.Ordinal)
+            If StartIndex >= 0 Then
+                Return Text.Substring(0, StartIndex) & Result & Text.Substring(StartIndex + Trimmed.Length)
+            End If
         End If
         Return Text
     End Function
@@ -151,17 +165,11 @@ Public Module ModLang
 #Region "界面翻译"
 
     ''' <summary>
-    ''' 记录每个元素首次出现的原文，用于在切换语言时重新翻译（切回简体中文时即可还原）。
+    ''' 记录每个控件各文本槽位首次出现的原文，用于切换语言时重新翻译（切回简体中文即可还原）。
     ''' </summary>
     Private NotInheritable Class LangOriginalValue
-        Public Text As String
-        Public TextApplied As String
-        Public Content As String
-        Public ContentApplied As String
-        Public Tip As String
-        Public TipApplied As String
-        Public Title As String
-        Public TitleApplied As String
+        Public ReadOnly Originals As New Dictionary(Of String, String)
+        Public ReadOnly Applied As New Dictionary(Of String, String)
     End Class
 
     Private ReadOnly LangOriginals As New ConditionalWeakTable(Of DependencyObject, LangOriginalValue)
@@ -172,6 +180,31 @@ Public Module ModLang
         Value = New LangOriginalValue()
         LangOriginals.Add(Target, Value)
         Return Value
+    End Function
+
+    ''' <summary>
+    ''' 计算某个文本槽位应该显示的内容：以原文为基准翻译，控件被程序改写文本时会自动更新原文。
+    ''' </summary>
+    Private Function TranslateSlot(Target As DependencyObject, Slot As String, Current As String) As String
+        If Current Is Nothing Then Return Nothing
+        Dim Store As LangOriginalValue = GetOriginalValue(Target)
+        Dim Original As String = Nothing
+        Dim Applied As String = Nothing
+        If Store.Originals.TryGetValue(Slot, Original) Then
+            Store.Applied.TryGetValue(Slot, Applied)
+            If Current <> Original AndAlso Current <> Applied Then
+                '控件文本被程序动态改写，把新内容当作原文重新记录
+                Original = Current
+                Store.Originals(Slot) = Current
+                Store.Applied.Remove(Slot)
+            End If
+        Else
+            Original = Current
+            Store.Originals(Slot) = Current
+        End If
+        Dim Translated As String = L(Original)
+        If Translated <> Current Then Store.Applied(Slot) = Translated
+        Return Translated
     End Function
 
     ''' <summary>
@@ -188,60 +221,69 @@ Public Module ModLang
 
     Private Sub LanguageApplyInternal(Obj As DependencyObject, Depth As Integer)
         If Obj Is Nothing OrElse Depth > 64 Then Return
+        'PCL 自定义控件的文本属性：直接改属性，未渲染与折叠状态下的内容也能覆盖
+        Dim Card As MyCard = TryCast(Obj, MyCard)
+        If Card IsNot Nothing AndAlso Card.Title IsNot Nothing Then
+            Card.Title = TranslateSlot(Card, "Title", Card.Title)
+        End If
+        Dim ListItem As MyListItem = TryCast(Obj, MyListItem)
+        If ListItem IsNot Nothing Then
+            If ListItem.Title IsNot Nothing Then ListItem.Title = TranslateSlot(ListItem, "Title", ListItem.Title)
+            If ListItem.Info IsNot Nothing Then ListItem.Info = TranslateSlot(ListItem, "Info", ListItem.Info)
+        End If
+        Dim HintControl As MyHint = TryCast(Obj, MyHint)
+        If HintControl IsNot Nothing AndAlso HintControl.Text IsNot Nothing Then
+            HintControl.Text = TranslateSlot(HintControl, "Text", HintControl.Text)
+        End If
+        Dim LoadingControl As MyLoading = TryCast(Obj, MyLoading)
+        If LoadingControl IsNot Nothing AndAlso LoadingControl.Text IsNot Nothing Then
+            LoadingControl.Text = TranslateSlot(LoadingControl, "Text", LoadingControl.Text)
+        End If
+        Dim TextBoxControl As MyTextBox = TryCast(Obj, MyTextBox)
+        If TextBoxControl IsNot Nothing AndAlso TextBoxControl.HintText IsNot Nothing Then
+            TextBoxControl.HintText = TranslateSlot(TextBoxControl, "HintText", TextBoxControl.HintText)
+        End If
+        Dim ButtonControl As MyButton = TryCast(Obj, MyButton)
+        If ButtonControl IsNot Nothing AndAlso ButtonControl.Text IsNot Nothing Then
+            ButtonControl.Text = TranslateSlot(ButtonControl, "Text", ButtonControl.Text)
+        End If
+        Dim CheckBoxControl As MyCheckBox = TryCast(Obj, MyCheckBox)
+        If CheckBoxControl IsNot Nothing AndAlso CheckBoxControl.Text IsNot Nothing Then
+            CheckBoxControl.Text = TranslateSlot(CheckBoxControl, "Text", CheckBoxControl.Text)
+        End If
+        Dim RadioControl As MyRadioButton = TryCast(Obj, MyRadioButton)
+        If RadioControl IsNot Nothing AndAlso RadioControl.Text IsNot Nothing Then
+            RadioControl.Text = TranslateSlot(RadioControl, "Text", RadioControl.Text)
+        End If
+        Dim ExtraTextControl As MyExtraTextButton = TryCast(Obj, MyExtraTextButton)
+        If ExtraTextControl IsNot Nothing AndAlso ExtraTextControl.Text IsNot Nothing Then
+            ExtraTextControl.Text = TranslateSlot(ExtraTextControl, "Text", ExtraTextControl.Text)
+        End If
         '文本块
         Dim Block As TextBlock = TryCast(Obj, TextBlock)
         If Block IsNot Nothing AndAlso Block.Text IsNot Nothing Then
-            Dim Original As LangOriginalValue = GetOriginalValue(Block)
-            If Original.Text Is Nothing Then
-                Original.Text = Block.Text
-            ElseIf Block.Text <> Original.Text AndAlso Block.Text <> Original.TextApplied Then
-                '文本被程序动态改写过，把新内容当作原文重新记录
-                Original.Text = Block.Text
-                Original.TextApplied = Nothing
-            End If
-            Dim Translated As String = L(Original.Text)
-            If Block.Text <> Translated Then
-                Block.Text = Translated
-                Original.TextApplied = Translated
-            End If
+            Block.Text = TranslateSlot(Block, "Text", Block.Text)
         End If
-        '按钮、列表项等把文本放在 Content 里的控件
+        '按钮菜单项等把文本放在 Content 里的控件
         Dim Container As ContentControl = TryCast(Obj, ContentControl)
         If Container IsNot Nothing Then
             Dim ContentText As String = TryCast(Container.Content, String)
             If ContentText IsNot Nothing Then
-                Dim Original As LangOriginalValue = GetOriginalValue(Container)
-                If Original.Content Is Nothing Then
-                    Original.Content = ContentText
-                ElseIf ContentText <> Original.Content AndAlso ContentText <> Original.ContentApplied Then
-                    Original.Content = ContentText
-                    Original.ContentApplied = Nothing
-                End If
-                Dim Translated As String = L(Original.Content)
-                If ContentText <> Translated Then
-                    Container.Content = Translated
-                    Original.ContentApplied = Translated
-                End If
+                Container.Content = TranslateSlot(Container, "Content", ContentText)
             End If
         End If
-        '窗体与控件提示
+        '控件提示
         Dim Element As FrameworkElement = TryCast(Obj, FrameworkElement)
         If Element IsNot Nothing Then
             Dim TipText As String = TryCast(Element.ToolTip, String)
             If TipText IsNot Nothing Then
-                Dim Original As LangOriginalValue = GetOriginalValue(Element)
-                If Original.Tip Is Nothing Then
-                    Original.Tip = TipText
-                ElseIf TipText <> Original.Tip AndAlso TipText <> Original.TipApplied Then
-                    Original.Tip = TipText
-                    Original.TipApplied = Nothing
-                End If
-                Dim Translated As String = L(Original.Tip)
-                If TipText <> Translated Then
-                    Element.ToolTip = Translated
-                    Original.TipApplied = Translated
-                End If
+                Element.ToolTip = TranslateSlot(Element, "Tip", TipText)
             End If
+        End If
+        '窗体标题
+        Dim Form As Window = TryCast(Obj, Window)
+        If Form IsNot Nothing AndAlso Form.Title IsNot Nothing Then
+            Form.Title = TranslateSlot(Form, "WindowTitle", Form.Title)
         End If
         '子元素
         If TypeOf Obj Is Visual OrElse TypeOf Obj Is System.Windows.Media.Media3D.Visual3D Then
@@ -269,7 +311,7 @@ Public Module ModLang
         End SyncLock
         If LanguagePassTimer Is Nothing Then
             LanguagePassTimer = New DispatcherTimer(DispatcherPriority.Background) With {
-                .Interval = New TimeSpan(0, 0, 0, 0, 450)
+                .Interval = New TimeSpan(0, 0, 0, 0, 400)
             }
             AddHandler LanguagePassTimer.Tick, AddressOf LanguagePassTick
         End If
@@ -280,11 +322,11 @@ Public Module ModLang
     Private Sub LanguagePassTick(sender As Object, e As EventArgs)
         LanguagePassCount += 1
         SyncLock LanguagePassRoots
-            For Each Item In LanguagePassRoots
-                If Item.IsAlive Then LanguageApplyTo(TryCast(Item.Target, DependencyObject))
+            For Each PassRoot As WeakReference In LanguagePassRoots
+                If PassRoot.IsAlive Then LanguageApplyTo(TryCast(PassRoot.Target, DependencyObject))
             Next
         End SyncLock
-        If LanguagePassCount >= 6 Then LanguagePassTimer.Stop()
+        If LanguagePassCount >= 8 Then LanguagePassTimer.Stop()
     End Sub
 
     ''' <summary>
