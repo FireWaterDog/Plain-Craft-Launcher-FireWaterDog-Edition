@@ -3,6 +3,6 @@
   "versionName": "3.0.0.10",
   "downloadUrl": "https://github.com/FireWaterDog/Plain-Craft-Launcher-FireWaterDog-Edition/releases/download/PCLFE/Plain.Craft.Launcher.2.exe",
   "changelog": "PCLFE 3.0.0.10：新增日本語 / 한국어 界面；修复切换语言后下拉框仍显示「跟随系统」；修复部分文本未翻译（扩展到控件文本属性，折叠内容也能翻译）",
-  "sha256": "",
+  "sha256": "ef89329eea120ff3919d4752226abacfaebdc4faa385740860279ae544ac24a0",
   "forceUpdate": false
 }
