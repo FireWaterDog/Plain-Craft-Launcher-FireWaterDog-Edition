@@ -354,6 +354,8 @@ Public Class FormMain
         PageSetupUI.HiddenRefresh()
         PageSetupUI.BackgroundRefresh(False, True)
         MusicRefreshPlay(False, True)
+        '应用界面语言（跟随系统或用户设置）
+        ModLang.LanguageApplyDeferred(WindMain)
         '扩展按钮
         BtnExtraDownload.ShowCheck = AddressOf BtnExtraDownload_ShowCheck
         BtnExtraBack.ShowCheck = AddressOf BtnExtraBack_ShowCheck
@@ -1502,6 +1504,11 @@ Public Class FormMain
                 Case PageType.HelpDetail '帮助详情
                     PageChangeAnim(New MyPageLeft, Stack.Additional(1))
             End Select
+#End Region
+
+#Region "应用界面语言"
+            '按原文查表翻译整个界面；异步加载出的内容由 LanguageApplyDeferred 的延迟重试补齐
+            ModLang.LanguageApplyDeferred(WindMain)
 #End Region
 
 #Region "设置为最新状态"

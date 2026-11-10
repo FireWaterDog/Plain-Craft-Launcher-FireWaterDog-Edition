@@ -345,6 +345,8 @@
       <DependentUpon>PageInstanceSetup.xaml</DependentUpon>
     </Compile>
     <Compile Include="Controls\MyDropShadow.vb" />
+    <Compile Include="Modules\Base\ModLang.vb" />
+    <Compile Include="Modules\Base\ModLangTable.vb" />
     <Compile Include="Modules\Base\ModLoader.vb" />
     <Compile Include="Modules\Base\ModNet.vb" />
     <Compile Include="Modules\Base\ModValidate.vb" />

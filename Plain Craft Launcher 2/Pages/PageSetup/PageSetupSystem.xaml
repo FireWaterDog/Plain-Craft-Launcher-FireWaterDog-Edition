@@ -7,6 +7,29 @@
     PanScroll="PanBack">
     <local:MyScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" x:Name="PanBack">
         <StackPanel x:Name="PanMain" Margin="25,10">
+            <local:MyCard Margin="0,15" Title="语言 / Language">
+                <StackPanel Margin="25,37,25,15">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="28" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <TextBlock VerticalAlignment="Center" HorizontalAlignment="Left" Text="界面语言" Margin="0,0,25,0" />
+                        <local:MyComboBox x:Name="ComboLanguage" Grid.Column="1" local:SettingService.Key="Language">
+                            <local:MyComboBoxItem Content="跟随系统" />
+                            <local:MyComboBoxItem Content="简体中文" IsSelected="True" />
+                            <local:MyComboBoxItem Content="繁體中文" />
+                            <local:MyComboBoxItem Content="English" />
+                        </local:MyComboBox>
+                        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Margin="0,10,0,0" FontSize="12" Opacity="0.6" TextWrapping="Wrap"
+                                   Text="默认跟随 Windows 系统语言（简体中文 / 繁體中文 / English），修改后立即生效；少数已经加载出来的内容可能需要重启启动器才会完全更新。" />
+                    </Grid>
+                </StackPanel>
+            </local:MyCard>
             <local:MyCard Margin="0,15" Title="下载">
                 <StackPanel Margin="25,37,25,15">
                     <Grid>

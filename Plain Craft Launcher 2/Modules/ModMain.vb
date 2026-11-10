@@ -29,7 +29,7 @@ Public Module ModMain
     ''' 在窗口左下角弹出提示文本。
     ''' </summary>
     Public Sub Hint(Text As String, Optional Type As HintType = HintType.Blue, Optional Log As Boolean = True)
-        HintWaiting.Enqueue(New HintMessage With {.Text = If(Text, ""), .Type = Type, .Log = Log})
+        HintWaiting.Enqueue(New HintMessage With {.Text = ModLang.L(If(Text, "")), .Type = Type, .Log = Log})
     End Sub
 
     Private Sub HintTick()
@@ -232,6 +232,11 @@ EndHint:
                              Optional IsWarn As Boolean = False, Optional HighLight As Boolean = True, Optional ForceWait As Boolean = False,
                              Optional Button1Action As Action = Nothing, Optional Button2Action As Action = Nothing, Optional Button3Action As Action = Nothing) As Integer
         '将弹窗列入队列
+        Caption = ModLang.L(Caption)
+        Title = ModLang.L(Title)
+        Button1 = ModLang.L(Button1)
+        Button2 = ModLang.L(Button2)
+        Button3 = ModLang.L(Button3)
         Dim Converter As New MyMsgBoxConverter With {.Type = MyMsgBoxType.Text, .Button1 = Button1, .Button2 = Button2, .Button3 = Button3, .Text = Caption, .IsWarn = IsWarn, .Title = Title, .HighLight = HighLight, .ForceWait = True, .Button1Action = Button1Action, .Button2Action = Button2Action, .Button3Action = Button3Action}
         If Button2.Length > 0 OrElse ForceWait Then
             '若有多个按钮则开始等待
