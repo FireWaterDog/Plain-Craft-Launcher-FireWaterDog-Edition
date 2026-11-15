@@ -383,7 +383,12 @@ Public Module ModJava
                             cancellationToken?.ThrowIfCancellationRequested()
                             '解析 Java 列表
                             Dim Results = New List(Of JavaDownloadInfo)
-                            For Each Prop As JProperty In IndexFileStr.DeserializeJson(Of JObject)()("windows-x64")
+                            '按系统位宽选择 Java 平台；官方列表若没有提供 32 位版本，则回退到 64 位
+                            Dim JavaPlatforms = IndexFileStr.DeserializeJson(Of JObject)()
+                            Dim PlatformNode = TryCast(JavaPlatforms(If(Environment.Is64BitOperatingSystem, "windows-x64", "windows-x86")), JObject)
+                            If PlatformNode Is Nothing Then PlatformNode = TryCast(JavaPlatforms("windows-x64"), JObject)
+                            If PlatformNode Is Nothing Then Throw New Exception("Mojang 提供的 Java 列表中没有可用的 Windows 平台")
+                            For Each Prop As JProperty In PlatformNode
                                 cancellationToken?.ThrowIfCancellationRequested()
                                 If Prop.Name = "minecraft-java-exe" Then Continue For '不是完整 Java
                                 Try

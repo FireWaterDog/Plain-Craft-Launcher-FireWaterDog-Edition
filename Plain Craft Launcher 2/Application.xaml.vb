@@ -241,7 +241,14 @@ RetryCacheCheck:
         DirectoryUtils.Create(DepDir)
         SetDllDirectory(DepDir)
         Try
-            ExtractResources(DepDir & "\libwebp.dll", "libwebp64")
+            '32 位与 64 位的原生库不能混用，按当前进程位宽选择对应资源
+            If Environment.Is64BitProcess Then
+                ExtractResources(DepDir & "\libwebp.dll", "libwebp64")
+            Else
+                '32 位版 libwebp 依赖同目录的 libsharpyuv.dll，必须先释放
+                ExtractResources(DepDir & "\libsharpyuv.dll", "libsharpyuv32")
+                ExtractResources(DepDir & "\libwebp.dll", "libwebp32")
+            End If
         Catch ex As Exception
             Logger.Warn(ex, "写入 libwebp.dll 失败") '防止同时加载多个图片时，同时写入文件导致文件占用，进而导致崩溃
         End Try
@@ -253,9 +260,20 @@ RetryCacheCheck:
             Dim DepDir As String = IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "PCL")
             IO.Directory.CreateDirectory(DepDir)
             Dim Target As String = IO.Path.Combine(DepDir, "WebView2Loader.dll")
-            If Not IO.File.Exists(Target) Then
-                Dim Data = DirectCast(My.Resources.ResourceManager.GetObject("WebView2Loader"), Byte())
-                If Data IsNot Nothing Then IO.File.WriteAllBytes(Target, Data)
+            '原生加载器同样区分位宽：32 位进程必须使用 32 位版本，否则加载会失败
+            Dim ResourceName As String = If(Environment.Is64BitProcess, "WebView2Loader", "WebView2Loader32")
+            Dim Data = DirectCast(My.Resources.ResourceManager.GetObject(ResourceName), Byte())
+            If Data IsNot Nothing Then
+                '已存在但内容不一致时（例如从 64 位系统复制过来的旧文件）需要覆盖
+                Dim NeedWrite As Boolean = Not IO.File.Exists(Target)
+                If Not NeedWrite Then
+                    Try
+                        NeedWrite = New IO.FileInfo(Target).Length <> Data.Length
+                    Catch
+                        NeedWrite = True
+                    End Try
+                End If
+                If NeedWrite Then IO.File.WriteAllBytes(Target, Data)
             End If
             SetDllDirectory(DepDir)
         Catch

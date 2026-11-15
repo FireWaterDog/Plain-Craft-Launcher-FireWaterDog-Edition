@@ -153,6 +153,26 @@ Namespace My.Resources
         '''<summary>
         '''  查找 System.Byte[] 类型的本地化资源。
         '''</summary>
+        Friend ReadOnly Property libwebp32() As Byte()
+            Get
+                Dim obj As Object = ResourceManager.GetObject("libwebp32", resourceCulture)
+                Return CType(obj, Byte())
+            End Get
+        End Property
+
+        '''<summary>
+        '''  查找 System.Byte[] 类型的本地化资源。
+        '''</summary>
+        Friend ReadOnly Property libsharpyuv32() As Byte()
+            Get
+                Dim obj As Object = ResourceManager.GetObject("libsharpyuv32", resourceCulture)
+                Return CType(obj, Byte())
+            End Get
+        End Property
+
+        '''<summary>
+        '''  查找 System.Byte[] 类型的本地化资源。
+        '''</summary>
         Friend ReadOnly Property MeloongCore() As Byte()
             Get
                 Dim obj As Object = ResourceManager.GetObject("MeloongCore", resourceCulture)

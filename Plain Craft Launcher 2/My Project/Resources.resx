@@ -145,6 +145,12 @@
   <data name="libwebp64" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\libwebp64.dll;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
+  <data name="libwebp32" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\libwebp32.dll;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="libsharpyuv32" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\libsharpyuv32.dll;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
   <data name="MeloongCore" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\..\PCLCS\bin\MeloongCore.dll;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
@@ -159,6 +165,9 @@
   </data>
   <data name="WebView2Loader" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\WebView2Loader.dll;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="WebView2Loader32" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\WebView2Loader32.dll;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
   <data name="Microsoft.Win32.Registry" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\..\PCLCS\bin\Microsoft.Win32.Registry.dll;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
