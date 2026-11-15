@@ -94,6 +94,7 @@ Public Class Settings
         New Setting("LaunchSkinID", "", Source:=Sources.Registry, OnChanged:=Sub() PageLaunchLeft.SkinLegacy.Start()),
         New Setting("LaunchSkinType", 0, Source:=Sources.Registry, OnChanged:=AddressOf PageSetupLaunch.UpdateSkinType),
         New Setting("LaunchSkinSlim", False, Source:=Sources.Registry),
+        New Setting("LaunchSkinServerPriority", False, Source:=Sources.Registry, OnChanged:=AddressOf PageSetupLaunch.UpdateSkinType),
         New Setting("LaunchFolderSelect", ""),
         New Setting("LaunchFolders", "", Source:=Sources.Registry),
         New Setting("LaunchArgumentTitle", ""),

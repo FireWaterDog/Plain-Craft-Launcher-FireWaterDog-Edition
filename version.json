@@ -1,8 +1,8 @@
 {
-  "versionCode": 435,
-  "versionName": "3.0.1.1",
+  "versionCode": 437,
+  "versionName": "3.0.1.2",
   "downloadUrl": "https://github.com/FireWaterDog/Plain-Craft-Launcher-FireWaterDog-Edition/releases/download/PCLFE/Plain.Craft.Launcher.2.exe",
-  "changelog": "PCLFE 3.0.1.1：支持 32 位（x86）Windows —— 补充 32 位 libwebp / libsharpyuv / WebView2Loader，并按系统位宽选择 Java 运行时",
-  "sha256": "246ccd822f62afe38b50ccce32dd3b15a973fa4a8098d1449a34ff3184be4241",
+  "changelog": "PCLFE 3.0.1.2：离线皮肤新增「优先使用服务器皮肤」开关，兼容 SkinsRestorer —— 不注入本地皮肤资源包、不改写离线 UUID",
+  "sha256": "",
   "forceUpdate": false
 }

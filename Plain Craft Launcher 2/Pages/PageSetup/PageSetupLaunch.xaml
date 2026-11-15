@@ -166,6 +166,9 @@
             <local:MyCard x:Name="CardSkin" Margin="0,0,0,15" Title="离线皮肤" CanSwap="True" IsSwapped="True">
                 <StackPanel Margin="25,40,25,15">
                     <local:MyHint Text="由于技术问题，此功能只保证对 1.19.2 以前的版本有效！" Theme="Yellow" Margin="0,0,0,10" />
+                    <local:MyCheckBox local:SettingService.Key="LaunchSkinServerPriority" x:Name="CheckSkinServerPriority" Height="24" Margin="0,0,0,10"
+                                      Text="优先使用服务器皮肤（不覆盖服务器下发的皮肤）"
+                                      ToolTip="开启后：&#xa;（1）不再向游戏注入本地皮肤资源包；&#xa;（2）不再为了皮肤而修改离线登录的 UUID。&#xa;如果服务器用 SkinsRestorer / 皮肤站，而你的皮肤显示不正确或所有人皮肤都一样，请打开此项。&#xa;注意：开启后本页的离线皮肤设置对多人游戏不再生效。" />
                     <Grid Margin="-1,0,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition />

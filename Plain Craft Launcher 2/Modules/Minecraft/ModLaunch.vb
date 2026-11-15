@@ -1161,6 +1161,8 @@ LoginFinish:
     '返回符合离线皮肤设置的 UUID
     Private Function McLoginLegacyUuidWithCustomSkin(UserName As String, SkinType As Integer, SkinName As String) As String
         Dim Uuid As String = McLoginLegacyUuid(UserName)
+        '「优先使用服务器皮肤」：不修改离线 UUID，避免与 SkinsRestorer 等按 UUID 索引皮肤的插件对不上
+        If Settings.Get(Of Boolean)("LaunchSkinServerPriority") Then Return Uuid
         '根据离线皮肤获取实际使用的 Uuid
         Select Case SkinType
             Case 0
@@ -1952,7 +1954,9 @@ NextInstance:
         Try
             Dim ZipFileAddress As String = McInstanceSelected.PathIndie & "resourcepacks\PCL2 Skin.zip"
             Dim NewTypeSetup As Boolean = McInstanceSelected.Version.Vanilla.Major >= 13 OrElse McInstanceSelected.Version.Vanilla.Major < 6
-            If McLoginLoader.Input.Type = McLoginType.Legacy AndAlso Settings.Get(Of Integer)("LaunchSkinType") = 4 AndAlso FileUtils.Exists(Paths.AppDataThenName & "CustomSkin.png") Then
+            If McLoginLoader.Input.Type = McLoginType.Legacy AndAlso Settings.Get(Of Integer)("LaunchSkinType") = 4 AndAlso
+               Not Settings.Get(Of Boolean)("LaunchSkinServerPriority") AndAlso
+               FileUtils.Exists(Paths.AppDataThenName & "CustomSkin.png") Then
                 Dim MetaFileAddress As String = PathTemp & "pack.mcmeta"
                 Dim PackPicAddress As String = PathTemp & "pack.png"
                 If McInstanceSelected.Version.Vanilla.Major < 6 Then

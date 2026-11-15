@@ -126,6 +126,17 @@ Public Class PageSetupLaunch
                 FrmSetupLaunch.PanSkinID.Visibility = Visibility.Collapsed
                 FrmSetupLaunch.PanSkinChange.Visibility = Visibility.Visible
         End Select
+        '「优先使用服务器皮肤」开启后，本地皮肤设置不再生效，这里置灰以免误导
+        Dim ServerPriority As Boolean = Settings.Get(Of Boolean)("LaunchSkinServerPriority")
+        FrmSetupLaunch.RadioSkinType0.IsEnabled = Not ServerPriority
+        FrmSetupLaunch.RadioSkinType1.IsEnabled = Not ServerPriority
+        FrmSetupLaunch.RadioSkinType2.IsEnabled = Not ServerPriority
+        FrmSetupLaunch.RadioSkinType3.IsEnabled = Not ServerPriority
+        FrmSetupLaunch.RadioSkinType4.IsEnabled = Not ServerPriority
+        If ServerPriority Then
+            FrmSetupLaunch.PanSkinID.Visibility = Visibility.Collapsed
+            FrmSetupLaunch.PanSkinChange.Visibility = Visibility.Collapsed
+        End If
         FrmSetupLaunch.CardSkin.TriggerForceResize()
     End Sub
 
