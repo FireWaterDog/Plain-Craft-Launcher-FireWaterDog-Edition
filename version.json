@@ -3,6 +3,6 @@
   "versionName": "3.0.1.2",
   "downloadUrl": "https://github.com/FireWaterDog/Plain-Craft-Launcher-FireWaterDog-Edition/releases/download/PCLFE/Plain.Craft.Launcher.2.exe",
   "changelog": "PCLFE 3.0.1.2：离线皮肤新增「优先使用服务器皮肤」开关，兼容 SkinsRestorer —— 不注入本地皮肤资源包、不改写离线 UUID",
-  "sha256": "",
+  "sha256": "544cd29bf2f6988244dd8ed41b876756e8bd60ed5bd6e6ed95d6349076e36368",
   "forceUpdate": false
 }
