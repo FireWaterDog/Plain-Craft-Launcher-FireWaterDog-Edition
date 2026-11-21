@@ -45,6 +45,9 @@ case "$(wine_arch)" in
 esac
 
 APPIMAGETOOL_URL="https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
+# 新版 appimagetool 把 runtime 拆成独立文件，且内置下载器在部分网络下会失败；
+# 这里自己下载后用 --runtime-file 显式传入。
+APPIMAGE_RUNTIME_URL="https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64"
 BUILD="$OUT_DIR/.appimage-build"
 APPDIR="$BUILD/pclfe.AppDir"
 
@@ -90,6 +93,14 @@ fi
 
 # appimagetool 需要 file(1) 判断 ELF 架构
 have file || die "需要 file 命令：sudo apt install file"
+
+RUNTIME_FILE="$PCLFE_CACHE_DIR/type2-runtime-$ARCH"
+if [ ! -s "$RUNTIME_FILE" ]; then
+    deps_require_net
+    info "下载 AppImage runtime"
+    download "$APPIMAGE_RUNTIME_URL" "$RUNTIME_FILE" 300 || die "无法下载 AppImage runtime"
+fi
+chmod +x "$RUNTIME_FILE" 2>/dev/null || true
 
 rm -rf "$BUILD"
 mkdir -p "$APPDIR/usr/bin" \
@@ -156,7 +167,7 @@ OUT_FILE="$OUT_DIR/pclfe-$VERSION-$ARCH.AppImage"
 rm -f "$OUT_FILE" "$OUT_FILE.sha256"
 
 # appimagetool 结束后会留下 AppDir 里的临时文件，构建完全部清掉
-ARCH=$ARCH "$TOOL" --no-appstream "$APPDIR" "$OUT_FILE" 2>&1 | tail -5 || {
+ARCH=$ARCH "$TOOL" --no-appstream --runtime-file "$RUNTIME_FILE" "$APPDIR" "$OUT_FILE" 2>&1 | tail -5 || {
     rm -rf "$BUILD"
     die "appimagetool 构建失败"
 }
