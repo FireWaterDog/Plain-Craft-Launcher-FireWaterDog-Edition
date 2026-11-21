@@ -6,6 +6,33 @@
 
 ---
 
+## Linux Edition 首发（对应启动器 3.0.1.2）
+
+本分支（`Plain-Craft-Launcher-FireWaterDog-Edition-Linux-Edition`）只新增 Linux 封装层，**不改动任何 VB / XAML / 工程文件**，Windows 版行为与 3.0.1.2 完全一致，因此 `version.json` 不递增。
+
+### 新功能
+
+- **Linux 版封装层（`linux/`）**：用 Wine + .NET Framework 4.8 运行原版 PCLFE，界面与功能同 Windows 版。
+  - `install.sh` 用户级安装：复制到 `~/.local/share/pclfe-linux`、建立 `~/.local/bin/pclfe`、写入桌面项与图标（图标从 `Images/icon.ico` 提取 256px PNG）。
+  - `pclfe setup`：创建 64 位 Wine 前缀，用 winetricks 安装 `win10 corefonts gdiplus vcrun2019 dotnet48`，并写入 DPI、崩溃对话框、浏览器委派等注册表项。
+  - `pclfe update`：按 `version.json` 的 `downloadUrl` / `sha256` 下载启动器本体并强校验；`pclfe install --from` 支持本地 `.exe`、`.zip`（含整包 `bin` 目录）与目录。
+  - `pclfe java install [版本]`：安装 **Windows x64 JRE**（Adoptium API，失败回退清华镜像），校验 SHA256 后解压到数据目录，并以其 `Z:\...` 路径写入 `JAVA_HOME`，供 PCL 的 Java 扫描收录。Linux 原生 Java 无法被 Wine 内的 `CreateProcess` 调用，故不使用。
+  - `pclfe webview2 install`：尝试安装 WebView2 运行时（微软正版登录依赖），失败时给出外部固定版本目录、离线登录等替代方案。
+  - `pclfe doctor`：逐项自检（架构、Wine、winetricks、.NET 4.8、WebView2、启动器 SHA256、Java、中文字体、OpenGL、音频、xdg-open、磁盘），输出可操作的修复建议。
+  - `pclfe prefix reset/winecfg/winetricks`、`pclfe config show/set`、`pclfe logs`、`pclfe version`。
+  - 启动环境：强制 UTF-8 locale（避免中文路径失效）、`PULSE_LATENCY_MSEC=60`（音频爆音）、可选 esync/fsync 与 DXVK、`WEBVIEW2_BROWSER_EXECUTABLE_FOLDER` 透传。
+  - `build-release.sh`：打包 `pclfe-linux-<版本>.tar.gz` 与 SHA256。
+  - `tests/run-tests.sh`：28 项冒烟测试（语法、行尾、命令分发、配置读写、路径转换、安装流程），不依赖 Wine。
+  - 新增 CI `.github/workflows/linux-package.yml`：ShellCheck + 冒烟测试 + 打包 + 产物上传，`linux-v*` 标签自动附加到 Release。
+
+### 已知限制
+
+- 仅支持 x86_64；ARM64 无法运行 Wine 与 .NET Framework 4.8。
+- 微软正版登录依赖 WebView2，Wine 下成功率与 Wine 版本、显卡驱动相关；失败时只能离线登录。
+- 联机（EasyTier）与部分依赖 Windows 专有 API 的插件未验证。
+
+---
+
 ## 3.0.1.2（2026-11-15）
 
 ### 新功能

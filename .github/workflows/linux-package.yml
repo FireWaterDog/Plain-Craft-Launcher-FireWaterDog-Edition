@@ -1,0 +1,95 @@
+name: Linux Package
+
+# Linux 版只改动 linux/ 目录，这里单独跑检查与打包，不影响 Windows 的构建流程。
+
+on:
+  push:
+    branches:
+      - Plain-Craft-Launcher-FireWaterDog-Edition-Linux-Edition
+    paths:
+      - "linux/**"
+      - ".github/workflows/linux-package.yml"
+      - ".gitattributes"
+  pull_request:
+    paths:
+      - "linux/**"
+      - ".github/workflows/linux-package.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: 检查与打包
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends shellcheck unzip cabextract
+
+      - name: ShellCheck 静态检查（错误级）
+        run: |
+          shellcheck -x -S error \
+            linux/bin/pclfe \
+            linux/lib/*.sh \
+            linux/install.sh \
+            linux/uninstall.sh \
+            linux/build-release.sh \
+            linux/tests/run-tests.sh
+
+      - name: ShellCheck 建议报告（不阻断）
+        continue-on-error: true
+        run: |
+          shellcheck -x -S warning -f gcc \
+            linux/bin/pclfe \
+            linux/lib/*.sh \
+            linux/install.sh \
+            linux/uninstall.sh \
+            linux/build-release.sh \
+            linux/tests/run-tests.sh
+
+      - name: 冒烟测试
+        run: sh linux/tests/run-tests.sh
+
+      - name: 打包发布件
+        run: sh linux/build-release.sh
+
+      - name: 校验打包结果
+        run: |
+          ls -lh linux/dist/
+          cd linux/dist && sha256sum -c ./*.sha256
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: pclfe-linux
+          path: |
+            linux/dist/*.tar.gz
+            linux/dist/*.sha256
+          if-no-files-found: error
+
+  release:
+    name: 附加到 Release
+    needs: check
+    if: startsWith(github.ref, 'refs/tags/linux-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pclfe-linux
+          path: dist
+
+      - name: 发布
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/*.sha256
+          fail_on_unmatched_files: true

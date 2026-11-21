@@ -352,3 +352,6 @@ PluginEditor/
 # grand 构建工具（仅本地使用，不入库）与插件包
 grand/
 *.pclfePlugin
+
+# Linux 版打包产物
+linux/dist/
