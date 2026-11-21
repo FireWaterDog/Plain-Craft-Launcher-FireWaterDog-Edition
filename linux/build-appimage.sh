@@ -53,12 +53,13 @@ resolve_appimagetool() {
         return 0
     fi
     _tool="$PCLFE_CACHE_DIR/appimagetool-$ARCH.AppImage"
-    if [ ! -x "$_tool" ]; then
+    # 只看文件是否已存在：下载来源不带可执行位，不能拿 -x 判断
+    if [ ! -s "$_tool" ]; then
         deps_require_net
-        info "下载 appimagetool（约 5 MB）"
+        info "下载 appimagetool（约 15 MB）"
         download "$APPIMAGETOOL_URL" "$_tool" 300 || return 1
-        chmod +x "$_tool" 2>/dev/null || true
     fi
+    chmod +x "$_tool" 2>/dev/null || true
     # 没有 FUSE 的环境（容器、WSL1）先解包再执行。
     _extract="$PCLFE_CACHE_DIR/appimagetool-extract"
     if [ ! -x "$_extract/squashfs-root/AppRun" ]; then
@@ -84,6 +85,9 @@ if ! have mksquashfs; then
         die "需要 mksquashfs：sudo apt install squashfs-tools"
     fi
 fi
+
+# appimagetool 需要 file(1) 判断 ELF 架构
+have file || die "需要 file 命令：sudo apt install file"
 
 rm -rf "$BUILD"
 mkdir -p "$APPDIR/usr/bin" \
