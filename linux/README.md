@@ -29,14 +29,56 @@ PCLFE 本体是 VB.NET + WPF（.NET Framework 4.8）程序，WPF 只能跑在 Wi
 
 ## 二、安装
 
-### 发布包（推荐）
+Linux 版提供四种落地方式，按习惯挑一种即可：
+
+| 形式 | 适用 | 大小 | 特点 |
+| --- | --- | --- | --- |
+| `pclfe_<版本>_all.deb` | Debian / Ubuntu / Deepin / UOS | 约 2.6 MB | 系统级安装，进应用菜单，`apt remove` 卸载 |
+| `pclfe-<版本>-x86_64.AppImage` | 任意发行版 | 约 3 MB | 单文件免安装，双击即用，不写系统目录 |
+| `pclfe-linux-<版本>-offline.tar.gz` | 任意发行版 | 约 3 MB | 解压装到用户目录，内置启动器 |
+| `pclfe-linux-<版本>.tar.gz` | 任意发行版 | 约 70 KB | 同上，但需 `pclfe update` 下载启动器 |
+
+### Debian / Ubuntu（.deb，推荐）
+
+```sh
+sudo apt install ./pclfe_<版本>_all.deb     # 自动补齐 wine 等依赖
+```
+
+装完在应用菜单里点 **PCLFE**，或终端：
+
+```sh
+pclfe setup && pclfe run
+```
+
+- 程序本体装在 `/usr/lib/pclfe`，入口 `/usr/bin/pclfe`
+- 依赖：`wine`、`winetricks`、`cabextract`、`unzip`、`curl|wget`、`ca-certificates`；推荐装 `fonts-noto-cjk`
+- 卸载：`sudo apt remove pclfe`（**不会删除** `~/.local/share/pclfe-linux` 里的游戏与存档）
+- 带启动器本体的 .deb 首次运行会把 exe 复制到用户目录，之后内置更新照常可用
+
+### AppImage（单文件，免 root）
+
+```sh
+chmod +x pclfe-<版本>-x86_64.AppImage
+./pclfe-<版本>-x86_64.AppImage
+```
+
+首次运行若提示缺少 FUSE：
+
+```sh
+sudo apt install libfuse2        # Ubuntu 22.04+
+./pclfe-<版本>-x86_64.AppImage --appimage-extract-and-run
+```
+
+AppImage 不安装任何系统文件，数据仍在 `~/.local/share/pclfe-linux`。
+
+### 压缩包
 
 有两种包，按需选：
 
 | 包 | 大小 | 特点 |
 | --- | --- | --- |
 | `pclfe-linux-<版本>.tar.gz` | 约 70 KB | 只含封装层，安装后需 `pclfe update` 下载启动器 |
-| `pclfe-linux-<版本>-offline.tar.gz` | 约 4 MB | 内置启动器本体，安装即可启动，无需联网下载 |
+| `pclfe-linux-<版本>-offline.tar.gz` | 约 3 MB | 内置启动器本体，安装即可启动，无需联网下载 |
 
 ```sh
 tar xzf pclfe-linux-<版本>[-offline].tar.gz
@@ -271,6 +313,8 @@ cd linux && ./uninstall.sh --purge
 sh linux/tests/run-tests.sh     # 冒烟测试：语法、命令分发、配置读写、路径转换、安装流程
 sh linux/build-release.sh       # 打包 pclfe-linux-<版本>.tar.gz + SHA256
 sh linux/build-release.sh . --with-exe /path/to/Plain.Craft.Launcher.2.exe   # 离线包
+sh linux/build-deb.sh           # 构建 pclfe_<版本>_all.deb（需 dpkg-deb）
+sh linux/build-appimage.sh      # 构建 pclfe-<版本>-x86_64.AppImage（需 mksquashfs）
 ```
 
 测试不依赖 Wine，可在 Windows 的 Git Bash 或任意 Linux 上跑；CI 见 `.github/workflows/linux-package.yml`。
@@ -301,7 +345,9 @@ linux/
 │   └── diag.sh            # 环境自检
 ├── install.sh             # 安装器
 ├── uninstall.sh           # 卸载器
-├── build-release.sh       # 发布打包
+├── build-release.sh       # 发布打包（tar.gz / 离线包）
+├── build-deb.sh           # .deb 打包（系统级安装）
+├── build-appimage.sh      # AppImage 打包（单文件应用）
 ├── packaging/icons/       # 图标（从 Images/icon.ico 提取的 256px PNG）
 ├── tests/run-tests.sh     # 冒烟测试
 └── README.md

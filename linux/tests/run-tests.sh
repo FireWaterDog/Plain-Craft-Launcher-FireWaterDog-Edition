@@ -43,7 +43,8 @@ trap cleanup EXIT INT TERM
 echo "== 语法检查 =="
 _code=0
 for _f in "$ROOT_DIR"/bin/pclfe "$ROOT_DIR"/lib/*.sh "$ROOT_DIR"/install.sh \
-          "$ROOT_DIR"/uninstall.sh "$ROOT_DIR"/build-release.sh "$0"; do
+          "$ROOT_DIR"/uninstall.sh "$ROOT_DIR"/build-release.sh \
+          "$ROOT_DIR"/build-deb.sh "$ROOT_DIR"/build-appimage.sh "$0"; do
     if sh -n "$_f" 2>/dev/null; then
         _pass "sh -n $(basename "$_f")"
     else

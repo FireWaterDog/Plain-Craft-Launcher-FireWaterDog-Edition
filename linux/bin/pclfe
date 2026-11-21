@@ -14,6 +14,9 @@ while [ -L "$SELF" ]; do
     esac
 done
 SELF_DIR=$(cd "$(dirname "$SELF")" && pwd -P)
+# 程序目录：用户级安装时等于数据目录，系统级安装（.deb）时是 /usr/lib/pclfe。
+PCLFE_PROGRAM_DIR=$(dirname "$SELF_DIR")
+export PCLFE_PROGRAM_DIR
 
 # 自定义安装目录：安装器会在数据目录写 .pclfe-home 标记，
 # 这样即使没设置 PCLFE_HOME，也能从 <home>/bin/pclfe 反推出正确位置。

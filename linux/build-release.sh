@@ -36,7 +36,7 @@ while [ $# -gt 0 ]; do
 done
 
 OUT_DIR=${OUT_DIR:-$SRC_DIR/dist}
-VERSION=$(pclfe_version)
+VERSION=${PCLFE_VERSION:-$(pclfe_version)}
 [ "$VERSION" = "unknown" ] && VERSION=$(date '+%Y%m%d')
 
 SUFFIX=''

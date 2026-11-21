@@ -91,7 +91,32 @@ dxvk_enabled() {
     esac
 }
 
+# 系统级安装（.deb）时，启动器本体在程序目录里且只读；
+# 首次运行把它复制到用户数据目录，后续启动与内置更新都写用户目录。
+runtime_ensure_local_copy() {
+    if [ -f "$PCLFE_APP_DIR/$PCLFE_EXE_NAME" ]; then
+        return 0
+    fi
+    [ -n "${PCLFE_PROGRAM_DIR:-}" ] || return 1
+    _sys="$PCLFE_PROGRAM_DIR/app"
+    [ -d "$_sys" ] || return 1
+    for _f in "$_sys"/*.exe; do
+        [ -f "$_f" ] || continue
+        [ "$_f" = "$PCLFE_APP_DIR/$PCLFE_EXE_NAME" ] && return 0
+        mkdir -p "$PCLFE_APP_DIR"
+        if cp -f "$_f" "$PCLFE_APP_DIR/$PCLFE_EXE_NAME" 2>/dev/null; then
+            chmod +x "$PCLFE_APP_DIR/$PCLFE_EXE_NAME" 2>/dev/null || true
+            info "已把系统自带的启动器复制到：$PCLFE_APP_DIR"
+            return 0
+        fi
+        warn "无法复制启动器到 $PCLFE_APP_DIR（权限不足？）"
+        return 1
+    done
+    return 1
+}
+
 runtime_preflight() {
+    runtime_ensure_local_copy
     _exe=$(runtime_exe) || {
         err "未找到启动器程序（$PCLFE_EXE_NAME）"
         dim "请先执行：pclfe update       # 从发布页下载"

@@ -1,10 +1,11 @@
 #!/usr/bin/env sh
 # 启动器本体的获取与更新：从发布页下载、从本地文件/目录安装、校验 SHA256。
 
-# 本地已有的版本清单（安装时复制到 $PCLFE_HOME/version.json）。
+# 本地已有的版本清单（用户数据目录优先，其次程序目录，兼容系统级安装）。
 app_manifest() {
-    for _m in "$PCLFE_HOME/version.json" "$PCLFE_APP_DIR/version.json"; do
-        [ -r "$_m" ] && { printf '%s\n' "$_m"; return 0; }
+    for _m in "$PCLFE_HOME/version.json" "$PCLFE_APP_DIR/version.json" \
+              "${PCLFE_PROGRAM_DIR:-}/version.json"; do
+        [ -n "$_m" ] && [ -r "$_m" ] && { printf '%s\n' "$_m"; return 0; }
     done
     return 1
 }
