@@ -174,6 +174,17 @@ if [ "$DO_DEPS" -eq 1 ]; then
     deps_print_report || warn "依赖未装齐，安装完成后请按上面的命令补齐"
 fi
 
+# 离线包：包内自带启动器本体时自动安装，省掉 pclfe update。
+if [ -z "$FROM_PATH" ]; then
+    for _b in "$SRC_DIR/app"/*.exe; do
+        if [ -f "$_b" ]; then
+            FROM_PATH=$_b
+            dim "包内自带启动器：$(basename "$_b")"
+            break
+        fi
+    done
+fi
+
 if [ -n "$FROM_PATH" ]; then
     step "安装启动器本体"
     "$PCLFE_HOME/bin/pclfe" install --from "$FROM_PATH" || warn "启动器本体安装失败"

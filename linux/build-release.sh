@@ -1,5 +1,11 @@
 #!/usr/bin/env sh
-# 打包 Linux 版发布件：pclfe-linux-<版本>.tar.gz + .sha256
+# 打包 Linux 版发布件：pclfe-linux-<版本>[-offline].tar.gz + .sha256
+#
+# 用法：
+#   sh build-release.sh [输出目录]                  只含封装层（体积小，安装后需 pclfe update）
+#   sh build-release.sh [输出目录] --with-exe <exe> 附带启动器本体（离线包，装完即可启动）
+#   也可用环境变量 PCLFE_BUNDLE_EXE 指定 exe。
+#
 # 产物可直接分发，解压后运行 ./install.sh。
 
 set -u
@@ -8,11 +14,34 @@ SRC_DIR=$(cd "$(dirname "$0")" && pwd -P)
 # shellcheck source=lib/common.sh
 . "$SRC_DIR/lib/common.sh"
 
-OUT_DIR=${1:-$SRC_DIR/dist}
+OUT_DIR=''
+BUNDLE_EXE=${PCLFE_BUNDLE_EXE:-}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --with-exe)
+            [ $# -ge 2 ] || die "--with-exe 需要参数"
+            BUNDLE_EXE=$2
+            shift
+            ;;
+        --with-exe=*) BUNDLE_EXE=${1#--with-exe=} ;;
+        --help|-h)
+            log "用法：sh build-release.sh [输出目录] [--with-exe <启动器.exe>]"
+            exit 0
+            ;;
+        -*) die "未知参数：$1" ;;
+        *) OUT_DIR=$1 ;;
+    esac
+    shift
+done
+
+OUT_DIR=${OUT_DIR:-$SRC_DIR/dist}
 VERSION=$(pclfe_version)
 [ "$VERSION" = "unknown" ] && VERSION=$(date '+%Y%m%d')
 
-PKG_NAME="pclfe-linux-$VERSION"
+SUFFIX=''
+[ -n "$BUNDLE_EXE" ] && SUFFIX='-offline'
+PKG_NAME="pclfe-linux-$VERSION$SUFFIX"
 STAGE="$OUT_DIR/$PKG_NAME"
 
 step "打包 $PKG_NAME"
@@ -30,6 +59,23 @@ for _man in "$SRC_DIR/version.json" "$SRC_DIR/../version.json"; do
     if [ -r "$_man" ]; then cp -f "$_man" "$STAGE/version.json"; break; fi
 done
 
+# 离线包：把启动器本体放进 app/，install.sh 会自动安装它。
+if [ -n "$BUNDLE_EXE" ]; then
+    [ -f "$BUNDLE_EXE" ] || die "启动器本体不存在：$BUNDLE_EXE"
+    mkdir -p "$STAGE/app"
+    cp -f "$BUNDLE_EXE" "$STAGE/app/$PCLFE_EXE_NAME"
+    _exe_sum=$(sha256_of "$STAGE/app/$PCLFE_EXE_NAME" || true)
+    dim "内置启动器：$(basename "$BUNDLE_EXE")（$(human_size "$STAGE/app/$PCLFE_EXE_NAME")）"
+    if [ -n "$_exe_sum" ]; then
+        printf '%s  app/%s\n' "$_exe_sum" "$PCLFE_EXE_NAME" > "$STAGE/app/exe.sha256"
+        # 与版本清单比对，明确告诉使用者这个 exe 是否就是当前发布版
+        _want=$(json_str "$STAGE/version.json" sha256 2>/dev/null || true)
+        if [ -n "$_want" ] && [ "$_want" != "$_exe_sum" ]; then
+            warn "内置 exe 与 version.json 记录的 SHA256 不一致（本地构建或版本不符）"
+        fi
+    fi
+fi
+
 # 统一权限与行尾（防止在 Windows 上打包带了 CRLF）。
 find "$STAGE" -type f -name '*.sh' -exec chmod +x {} +
 chmod +x "$STAGE/bin/pclfe" "$STAGE/install.sh" "$STAGE/uninstall.sh"
@@ -42,7 +88,8 @@ rm -f "$TARBALL" "$TARBALL.sha256"
 if _sum=$(sha256_of "$TARBALL"); then
     printf '%s  %s\n' "$_sum" "$PKG_NAME.tar.gz" > "$TARBALL.sha256"
     ok "产物：$TARBALL"
-    log "SHA256：$_sum"
+    log "  大小：$(human_size "$TARBALL")"
+    log "  SHA256：$_sum"
 else
     warn "没有 sha256 工具，未生成校验文件"
 fi
@@ -51,3 +98,5 @@ rm -rf "$STAGE"
 log ""
 log "分发方式："
 log "  tar xzf $PKG_NAME.tar.gz && cd $PKG_NAME && ./install.sh"
+[ -n "$SUFFIX" ] && log "  离线包已内置启动器，安装后直接 pclfe setup && pclfe run（无需 pclfe update）"
+exit 0
