@@ -149,8 +149,10 @@ chmod 755 "$ROOT/DEBIAN/postrm"
 
 # 控制信息
 INSTALLED_SIZE=$(du -sk "$ROOT/usr" | awk '{print $1}')
-DEPS='wine | wine64, winetricks, cabextract, unzip, curl | wget, ca-certificates'
-RECS='fonts-noto-cjk | fonts-wqy-zenhei, mesa-utils'
+# 只有轻量且各发行版都稳定存在的放进 Depends；
+# wine / winetricks 放进 Recommends —— apt 默认会装，但发行版改了包名也不至于装不上。
+DEPS='ca-certificates, curl | wget'
+RECS='wine | wine64, winetricks, cabextract, unzip, fonts-noto-cjk | fonts-wqy-zenhei, mesa-utils'
 cat > "$ROOT/DEBIAN/control" <<EOF
 Package: $PKG
 Version: $VERSION
@@ -175,7 +177,12 @@ chmod 644 "$ROOT/DEBIAN/control"
 
 DEB="$OUT_DIR/$DEB_NAME"
 rm -f "$DEB"
-dpkg-deb --root-owner-group --build "$ROOT" "$DEB" >/dev/null || die "dpkg-deb 构建失败"
+# 压缩格式用 xz：dpkg 1.15.6+ 都能读，避免新版 dpkg 默认的 zstd 在老系统
+# （Debian 11、Ubuntu 20.04、Deepin/UOS 等）上报
+# "unknown compression for member 'control.tar.zst'"。
+DEB_COMPRESSION=${PCLFE_DEB_COMPRESSION:-xz}
+dpkg-deb --root-owner-group -Z"$DEB_COMPRESSION" --build "$ROOT" "$DEB" >/dev/null \
+    || die "dpkg-deb 构建失败"
 
 if _sum=$(sha256_of "$DEB"); then
     printf '%s  %s\n' "$_sum" "$DEB_NAME" > "$DEB.sha256"
@@ -183,6 +190,7 @@ fi
 
 ok "产物：$DEB"
 log "  大小：$(human_size "$DEB")"
+log "  压缩：$DEB_COMPRESSION（兼容老版本 dpkg）"
 [ -n "${_sum:-}" ] && log "  SHA256：$_sum"
 log ""
 log "安装："

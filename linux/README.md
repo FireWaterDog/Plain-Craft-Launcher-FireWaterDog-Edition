@@ -51,9 +51,11 @@ pclfe setup && pclfe run
 ```
 
 - 程序本体装在 `/usr/lib/pclfe`，入口 `/usr/bin/pclfe`
-- 依赖：`wine`、`winetricks`、`cabextract`、`unzip`、`curl|wget`、`ca-certificates`；推荐装 `fonts-noto-cjk`
+- 依赖：`Depends` 只有 `ca-certificates` 与 `curl|wget`；`wine`、`winetricks`、`cabextract`、`unzip`、中文字体放在 `Recommends`，`apt install` 默认会一起装，发行版改了包名也不会导致装不上
+- 用 `dpkg -i` 而不是 `apt install` 时不会自动补依赖，装完请跑一次 `pclfe doctor` 看缺什么
 - 卸载：`sudo apt remove pclfe`（**不会删除** `~/.local/share/pclfe-linux` 里的游戏与存档）
 - 带启动器本体的 .deb 首次运行会把 exe 复制到用户目录，之后内置更新照常可用
+- 包内使用 `xz` 压缩（而非新版 dpkg 默认的 zstd），Debian 10/11、Ubuntu 18.04+、Deepin/UOS 等老 `dpkg` 也能安装
 
 ### AppImage（单文件，免 root）
 
@@ -292,6 +294,10 @@ pclfe config set PCLFE_UPDATE_MANIFEST "https://你的镜像/version.json https:
 ```
 
 注意 `downloadUrl` 指向 GitHub Release 资产，若直链也不通，可先用 `pclfe install --from` 安装本地下载好的 exe。
+
+**`dpkg` 报 `unknown compression for member 'control.tar.zst'`**
+
+下载到的是早期用 zstd 打的包，老版本 `dpkg`（Debian 11、Ubuntu 20.04、Deepin/UOS 等）读不了。重新下载当前版本的 `.deb` 即可，现在的包统一用 `xz` 压缩。
 
 **界面太小 / 太大**
 

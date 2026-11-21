@@ -29,7 +29,9 @@
 
 ### 应用包（系统集成）
 
-- **`build-deb.sh`**：构建 `pclfe_<版本>_all.deb`，装到 `/usr/lib/pclfe`，提供 `/usr/bin/pclfe`、应用菜单项、hicolor 图标、`/usr/share/doc/pclfe` 文档与版权；`Depends` 声明 wine/winetricks 等，`apt remove` 不会删除用户数据。
+- **`build-deb.sh`**：构建 `pclfe_<版本>_all.deb`，装到 `/usr/lib/pclfe`，提供 `/usr/bin/pclfe`、应用菜单项、hicolor 图标、`/usr/share/doc/pclfe` 文档与版权；`apt remove` 不会删除用户数据。
+  - 使用 **xz** 压缩（`-Zxz`），兼容 Debian 10/11、Ubuntu 18.04+、Deepin/UOS 等老版本 `dpkg`；新版 dpkg 默认的 zstd 在这些系统上会报 `unknown compression for member 'control.tar.zst'`。
+  - `Depends` 仅保留 `ca-certificates`、`curl|wget`；`wine`、`winetricks`、`cabextract`、`unzip`、中文字体移入 `Recommends`，`apt install` 默认仍会安装，但改名的发行版不会因此装不上。
 - **`build-appimage.sh`**：构建单文件 `pclfe-<版本>-x86_64.AppImage`，免安装免 root；自动下载 appimagetool，适配无 FUSE 环境（先解包再执行）。
 - 系统级安装首次运行时，自动把只读程序目录里的启动器复制到 `~/.local/share/pclfe-linux/app`，之后内置更新照常写用户目录。
 - `pclfe version` / `doctor` 支持从程序目录读取 `version.json`（deb 安装后无需先 update 也知道版本）。
