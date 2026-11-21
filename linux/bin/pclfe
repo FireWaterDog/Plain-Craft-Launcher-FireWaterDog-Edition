@@ -52,6 +52,8 @@ fi
 . "$LIB_DIR/update.sh"
 # shellcheck source=../lib/runtime.sh
 . "$LIB_DIR/runtime.sh"
+# shellcheck source=../lib/gui.sh
+. "$LIB_DIR/gui.sh"
 # shellcheck source=../lib/diag.sh
 . "$LIB_DIR/diag.sh"
 
@@ -147,7 +149,24 @@ cmd_setup() {
 }
 
 cmd_run() {
+    # 从桌面项启动时没有终端，失败必须弹窗，否则就是“双击没反应”。
+    if ! runtime_preflight; then
+        if [ ! -t 1 ]; then
+            gui_first_run_help "${PCLFE_BLOCK_REASON:-运行环境未就绪。}"
+            return 1
+        fi
+        return 1
+    fi
     runtime_run "$@"
+    _rc=$?
+    if [ "$_rc" -ne 0 ] && [ ! -t 1 ]; then
+        gui_error "启动失败" "启动器异常退出，退出码 $_rc。
+
+日志：${PCLFE_LAST_LOG:-（未生成）}
+
+可在终端执行 'pclfe doctor' 查看环境问题。"
+    fi
+    return "$_rc"
 }
 
 cmd_update() {

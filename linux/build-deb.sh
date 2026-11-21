@@ -152,7 +152,7 @@ INSTALLED_SIZE=$(du -sk "$ROOT/usr" | awk '{print $1}')
 # 只有轻量且各发行版都稳定存在的放进 Depends；
 # wine / winetricks 放进 Recommends —— apt 默认会装，但发行版改了包名也不至于装不上。
 DEPS='ca-certificates, curl | wget'
-RECS='wine | wine64, winetricks, cabextract, unzip, fonts-noto-cjk | fonts-wqy-zenhei, mesa-utils'
+RECS='wine | wine64, winetricks, cabextract, unzip, fonts-noto-cjk | fonts-wqy-zenhei, mesa-utils, zenity | kdialog'
 cat > "$ROOT/DEBIAN/control" <<EOF
 Package: $PKG
 Version: $VERSION

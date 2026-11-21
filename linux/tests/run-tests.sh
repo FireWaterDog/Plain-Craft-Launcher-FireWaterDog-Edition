@@ -111,6 +111,38 @@ else
 fi
 
 echo ""
+echo "== 桌面提示 =="
+_gui_headless=$( (
+    PCLFE_HOME="$TMP_ROOT/data/pclfe-linux"; export PCLFE_HOME
+    # shellcheck source=/dev/null
+    . "$ROOT_DIR/lib/common.sh"
+    # shellcheck source=/dev/null
+    . "$ROOT_DIR/lib/gui.sh"
+    DISPLAY='' WAYLAND_DISPLAY=''
+    export DISPLAY WAYLAND_DISPLAY
+    if gui_available; then printf 'yes'; else printf 'no'; fi
+) 2>/dev/null )
+if [ "$_gui_headless" = "no" ]; then
+    _pass "无图形会话时 gui_available 返回不可用"
+else
+    _fail "无图形会话时 gui_available 判断异常：$_gui_headless"
+fi
+
+( PCLFE_HOME="$TMP_ROOT/data/pclfe-linux"; export PCLFE_HOME
+  # shellcheck source=/dev/null
+  . "$ROOT_DIR/lib/common.sh"
+  # shellcheck source=/dev/null
+  . "$ROOT_DIR/lib/gui.sh"
+  DISPLAY='' WAYLAND_DISPLAY=''; export DISPLAY WAYLAND_DISPLAY
+  gui_error "测试标题" "测试正文" >/dev/null 2>&1
+) || true
+if grep -q "测试标题" "$TMP_ROOT/data/pclfe-linux/logs/gui.log" 2>/dev/null; then
+    _pass "gui_error 在无图形环境下写入日志"
+else
+    _fail "gui_error 未写入日志"
+fi
+
+echo ""
 echo "== 自检与安装器 =="
 run_iso "$PCLFE" doctor >/dev/null 2>&1
 _doc=$?

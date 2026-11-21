@@ -299,6 +299,34 @@ pclfe config set PCLFE_UPDATE_MANIFEST "https://你的镜像/version.json https:
 
 下载到的是早期用 zstd 打的包，老版本 `dpkg`（Debian 11、Ubuntu 20.04、Deepin/UOS 等）读不了。重新下载当前版本的 `.deb` 即可，现在的包统一用 `xz` 压缩。
 
+**双击应用菜单里的 PCLFE 没反应**
+
+1. **首次运行必须先初始化**，直接双击是打不开的（要建 Wine 前缀 + 装 .NET 4.8）。在终端执行一次：
+
+   ```sh
+   pclfe setup
+   ```
+
+2. 新版在未初始化时会**弹窗询问是否打开终端**继续。如果连弹窗都没有，说明系统缺对话框工具：
+
+   ```sh
+   sudo apt install zenity        # KDE 可用 kdialog
+   ```
+
+3. 看日志确认原因：`~/.local/share/pclfe-linux/logs/gui.log`
+
+4. 环境是否齐全：`pclfe doctor`
+
+**双击 AppImage 没反应**
+
+AppImage 需要可执行位：
+
+```sh
+chmod +x pclfe-<版本>-x86_64.AppImage
+```
+
+部分文件管理器（Nautilus 等）默认不允许运行可执行文件，需在「首选项 → 行为」里允许，或直接在终端 `./pclfe-*.AppImage`。缺 FUSE 时用 `--appimage-extract-and-run`。
+
 **界面太小 / 太大**
 
 `pclfe config set PCLFE_DPI 120`（125%），`144` 为 150%。
@@ -348,6 +376,7 @@ linux/
 │   ├── webview2.sh        # WebView2 运行时
 │   ├── update.sh          # 启动器下载/更新/本地安装
 │   ├── runtime.sh         # 启动与环境变量
+│   ├── gui.sh             # 桌面弹窗、终端拉起（双击启动时的提示）
 │   └── diag.sh            # 环境自检
 ├── install.sh             # 安装器
 ├── uninstall.sh           # 卸载器

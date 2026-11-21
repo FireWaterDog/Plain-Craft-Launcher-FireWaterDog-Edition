@@ -115,9 +115,13 @@ runtime_ensure_local_copy() {
     return 1
 }
 
+# 启动前置检查。失败时把原因写进 PCLFE_BLOCK_REASON，供桌面端弹窗使用。
+PCLFE_BLOCK_REASON=''
 runtime_preflight() {
+    PCLFE_BLOCK_REASON=''
     runtime_ensure_local_copy
     _exe=$(runtime_exe) || {
+        PCLFE_BLOCK_REASON="尚未安装启动器本体（缺少 $PCLFE_EXE_NAME）。"
         err "未找到启动器程序（$PCLFE_EXE_NAME）"
         dim "请先执行：pclfe update       # 从发布页下载"
         dim "或：     pclfe install --from /path/to/bin.zip"
@@ -125,7 +129,14 @@ runtime_preflight() {
     }
     [ -x "$_exe" ] || chmod +x "$_exe" 2>/dev/null || true
 
+    if ! wine_bin >/dev/null 2>&1; then
+        PCLFE_BLOCK_REASON='系统里没有安装 Wine。'
+        err "未安装 wine"
+        dim "可执行：pclfe setup（会给出当前发行版的安装命令）"
+        return 1
+    fi
     if ! prefix_exists; then
+        PCLFE_BLOCK_REASON='Wine 前缀尚未初始化。'
         err "Wine 前缀尚未初始化"
         dim "请先执行：pclfe setup"
         return 1
@@ -147,6 +158,7 @@ runtime_run() {
     mkdir -p "$PCLFE_LOG_DIR"
     _log="$PCLFE_LOG_DIR/run-$(timestamp).log"
     _status_file="$PCLFE_CACHE_DIR/.run-status"
+    PCLFE_LAST_LOG="$_log"
 
     info "启动器：$_exe"
     dim "Wine 前缀：$PCLFE_PREFIX_DIR"

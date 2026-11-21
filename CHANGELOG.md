@@ -37,6 +37,15 @@
 - `pclfe version` / `doctor` 支持从程序目录读取 `version.json`（deb 安装后无需先 update 也知道版本）。
 - 打包脚本支持 `PCLFE_VERSION` 覆盖版本号；CI 同步产出 deb 与 AppImage。
 
+### 桌面体验
+
+- 新增 `lib/gui.sh`：从应用菜单/文件管理器启动（无终端）时，失败不再静默。
+  - 未初始化、缺 Wine、缺启动器本体分别给出对应说明，并提供「打开终端继续」按钮（zenity / kdialog，退化为 xmessage 或 notify-send）。
+  - 终端会自动执行 `pclfe setup && pclfe run`（缺本体时为 `pclfe update && pclfe run`），结束后等待回车关闭。
+  - 所有提示同时写入 `~/.local/share/pclfe-linux/logs/gui.log`，便于无对话框环境排查。
+  - 启动器运行中异常退出时同样弹窗并给出日志路径。
+- `.deb` 的 `Recommends` 增加 `zenity | kdialog`；用户级安装的 `.desktop` 为 `Exec` 路径加引号，安装目录含空格时也能启动。
+
 ### 已知限制
 
 - 仅支持 x86_64；ARM64 无法运行 Wine 与 .NET Framework 4.8。
