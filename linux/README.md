@@ -31,9 +31,16 @@ PCLFE 本体是 VB.NET + WPF（.NET Framework 4.8）程序，WPF 只能跑在 Wi
 
 ### 发布包（推荐）
 
+有两种包，按需选：
+
+| 包 | 大小 | 特点 |
+| --- | --- | --- |
+| `pclfe-linux-<版本>.tar.gz` | 约 70 KB | 只含封装层，安装后需 `pclfe update` 下载启动器 |
+| `pclfe-linux-<版本>-offline.tar.gz` | 约 4 MB | 内置启动器本体，安装即可启动，无需联网下载 |
+
 ```sh
-tar xzf pclfe-linux-<版本>.tar.gz
-cd pclfe-linux-<版本>
+tar xzf pclfe-linux-<版本>[-offline].tar.gz
+cd pclfe-linux-<版本>[-offline]
 ./install.sh
 ```
 
@@ -263,6 +270,7 @@ cd linux && ./uninstall.sh --purge
 ```sh
 sh linux/tests/run-tests.sh     # 冒烟测试：语法、命令分发、配置读写、路径转换、安装流程
 sh linux/build-release.sh       # 打包 pclfe-linux-<版本>.tar.gz + SHA256
+sh linux/build-release.sh . --with-exe /path/to/Plain.Craft.Launcher.2.exe   # 离线包
 ```
 
 测试不依赖 Wine，可在 Windows 的 Git Bash 或任意 Linux 上跑；CI 见 `.github/workflows/linux-package.yml`。

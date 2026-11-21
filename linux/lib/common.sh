@@ -300,8 +300,11 @@ confirm() {
 timestamp() { date '+%Y%m%d-%H%M%S'; }
 
 human_size() {
-    if [ -e "$1" ] && have du; then
-        du -h "$1" 2>/dev/null | awk '{print $1}'
+    if [ -f "$1" ]; then
+        # 文件用 ls 的“表观大小”，du 会把块对齐算进去，显示偏大
+        ls -lh "$1" 2>/dev/null | awk '{print $5}'
+    elif [ -d "$1" ] && have du; then
+        du -sh "$1" 2>/dev/null | awk '{print $1}'
     else
         printf '?\n'
     fi
