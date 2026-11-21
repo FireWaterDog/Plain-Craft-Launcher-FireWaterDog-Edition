@@ -56,6 +56,8 @@ while [ $# -gt 0 ]; do
 done
 
 PCLFE_HOME=$TARGET_HOME
+# 后续调用的 pclfe 子进程要认同一个数据目录（--prefix 可能不是默认值）。
+export PCLFE_HOME
 mkdir -p "$PCLFE_HOME/bin" "$PCLFE_HOME/lib" "$PCLFE_HOME/packaging" \
          "$PCLFE_HOME/app" "$PCLFE_HOME/jre" "$PCLFE_HOME/logs" \
          "$PCLFE_HOME/cache" "$PCLFE_HOME/state"
