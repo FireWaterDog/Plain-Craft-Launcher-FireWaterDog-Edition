@@ -355,3 +355,7 @@ grand/
 
 # Linux 版打包产物
 linux/dist/
+
+# Linux 版入口脚本：bin/ 是标准目录名，不能被上面的 [Bb]in/ 规则吞掉
+!linux/bin/
+!linux/bin/pclfe

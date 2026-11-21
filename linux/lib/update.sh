@@ -19,11 +19,19 @@ app_current_version() {
 }
 
 # 拉取远端清单到缓存，成功时输出文件路径（只输出路径，进度信息走 stderr）。
+# PCLFE_UPDATE_MANIFEST 可用空格分隔多个地址，按顺序回退。
 update_fetch_manifest() {
     deps_require_net
     _dest="$PCLFE_CACHE_DIR/version.json"
-    download "$PCLFE_UPDATE_MANIFEST" "$_dest" 60 >&2 || return 1
-    printf '%s\n' "$_dest"
+    for _src in $PCLFE_UPDATE_MANIFEST; do
+        dim "尝试清单：$_src" >&2
+        if download "$_src" "$_dest" 60 >&2; then
+            printf '%s\n' "$_dest"
+            return 0
+        fi
+        warn "该地址不可用，尝试下一个"
+    done
+    return 1
 }
 
 # 备份现有程序文件（只备份程序本体，不含 .minecraft 与存档）。
@@ -112,9 +120,8 @@ app_install_from() {
 
 update_apply() {
     step "获取版本信息"
-    dim "$PCLFE_UPDATE_MANIFEST"
     if ! _manifest=$(update_fetch_manifest); then
-        die "无法获取版本信息，请检查网络或 PCLFE_UPDATE_MANIFEST"
+        die "无法获取版本信息，请检查网络或用 'pclfe config set PCLFE_UPDATE_MANIFEST <你的镜像地址>' 指定来源"
     fi
     _ver=$(json_str "$_manifest" versionName || true)
     _url=$(json_str "$_manifest" downloadUrl || true)

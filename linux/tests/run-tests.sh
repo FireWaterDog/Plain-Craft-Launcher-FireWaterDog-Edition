@@ -170,6 +170,18 @@ else
 fi
 
 echo ""
+echo "== 自定义安装目录 =="
+"$ROOT_DIR/install.sh" --prefix "$TMP_ROOT/alt-home" --bin "$TMP_ROOT/alt-bin" \
+    --no-deps --no-setup >/dev/null 2>&1
+_alt_out=$( ( HOME="$TMP_ROOT/home" XDG_DATA_HOME="$TMP_ROOT/data" \
+              XDG_CONFIG_HOME="$TMP_ROOT/config"; export HOME XDG_DATA_HOME XDG_CONFIG_HOME; \
+              "$TMP_ROOT/alt-bin/pclfe" version ) 2>&1 )
+case "$_alt_out" in
+    *"$TMP_ROOT/alt-home"*) _pass "--prefix 安装后能反推出自定义数据目录" ;;
+    *) _fail "--prefix 安装后指向了错误的数据目录：$(printf '%s' "$_alt_out" | tr '\n' ' ')" ;;
+esac
+
+echo ""
 echo "== 本地安装启动器 =="
 printf 'FAKEEXE' > "$TMP_ROOT/fake.exe"
 run_iso "$PCLFE" install --from "$TMP_ROOT/fake.exe" >/dev/null 2>&1

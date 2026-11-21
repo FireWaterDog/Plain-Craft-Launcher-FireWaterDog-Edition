@@ -16,6 +16,8 @@
   - `install.sh` 用户级安装：复制到 `~/.local/share/pclfe-linux`、建立 `~/.local/bin/pclfe`、写入桌面项与图标（图标从 `Images/icon.ico` 提取 256px PNG）。
   - `pclfe setup`：创建 64 位 Wine 前缀，用 winetricks 安装 `win10 corefonts gdiplus vcrun2019 dotnet48`，并写入 DPI、崩溃对话框、浏览器委派等注册表项。
   - `pclfe update`：按 `version.json` 的 `downloadUrl` / `sha256` 下载启动器本体并强校验；`pclfe install --from` 支持本地 `.exe`、`.zip`（含整包 `bin` 目录）与目录。
+    - 清单来源支持空格分隔多个地址依次回退，默认 `raw.githubusercontent.com` → `cdn.jsdelivr.net`（前者在国内常被重置）；默认值不写入 `config.env`，便于随程序更新。
+  - 支持 `--prefix` 自定义安装目录：安装时写入 `.pclfe-home` 标记，`<home>/bin/pclfe` 会据此反推数据目录，无需额外设置环境变量。
   - `pclfe java install [版本]`：安装 **Windows x64 JRE**（Adoptium API，失败回退清华镜像），校验 SHA256 后解压到数据目录，并以其 `Z:\...` 路径写入 `JAVA_HOME`，供 PCL 的 Java 扫描收录。Linux 原生 Java 无法被 Wine 内的 `CreateProcess` 调用，故不使用。
   - `pclfe webview2 install`：尝试安装 WebView2 运行时（微软正版登录依赖），失败时给出外部固定版本目录、离线登录等替代方案。
   - `pclfe doctor`：逐项自检（架构、Wine、winetricks、.NET 4.8、WebView2、启动器 SHA256、Java、中文字体、OpenGL、音频、xdg-open、磁盘），输出可操作的修复建议。

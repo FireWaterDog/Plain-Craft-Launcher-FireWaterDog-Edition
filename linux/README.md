@@ -102,7 +102,8 @@ pclfe run        # 启动（不带参数时 pclfe 等同于 pclfe run）
 ├── jre/          # pclfe java install 装的 Windows 版 JRE
 ├── logs/         # 每次运行的日志
 ├── cache/        # 下载缓存
-└── state/        # 组件安装标记
+├── state/        # 组件安装标记
+└── .pclfe-home   # 安装标记：让 <home>/bin/pclfe 反推出自定义安装位置
 ~/.config/pclfe-linux/config.env   # 配置
 ```
 
@@ -121,7 +122,7 @@ pclfe run        # 启动（不带参数时 pclfe 等同于 pclfe run）
 | `PCLFE_ESYNC` | `1` | 启用 esync/fsync，降低 CPU 占用 |
 | `PCLFE_RENDERER` | `auto` | `auto` 跟随 `PCLFE_DXVK`；`vulkan` 强制 DXVK；`gl` 强制 WineD3D |
 | `PCLFE_WINEDEBUG` | `-all` | Wine 调试输出；排查时改 `warn+all` |
-| `PCLFE_UPDATE_MANIFEST` | 上游 `version.json` | 更新清单地址，可换镜像 |
+| `PCLFE_UPDATE_MANIFEST` | raw + jsDelivr 两路 | 更新清单地址，可用空格分隔多个来源依次回退 |
 
 环境变量优先级高于配置文件，例如 `PCLFE_DPI=120 pclfe run`。
 
@@ -232,6 +233,16 @@ pclfe run
 **下载很慢**
 
 在启动器「设置 → 启动 → 下载源」切到 BMCLAPI；`pclfe update` 也可以换清单镜像：`pclfe config set PCLFE_UPDATE_MANIFEST <url>`。
+
+**`pclfe update` 提示「无法获取版本信息」**
+
+清单默认按 `raw.githubusercontent.com` → `cdn.jsdelivr.net` 两路回退，两者都被网络环境阻断时会失败。此时用能访问的地址替换即可，支持空格分隔多个来源：
+
+```sh
+pclfe config set PCLFE_UPDATE_MANIFEST "https://你的镜像/version.json https://raw.githubusercontent.com/..."
+```
+
+注意 `downloadUrl` 指向 GitHub Release 资产，若直链也不通，可先用 `pclfe install --from` 安装本地下载好的 exe。
 
 **界面太小 / 太大**
 

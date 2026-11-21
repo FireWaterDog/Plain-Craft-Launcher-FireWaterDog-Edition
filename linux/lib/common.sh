@@ -40,7 +40,9 @@ PCLFE_DXVK="${PCLFE_DXVK:-0}"
 PCLFE_ESYNC="${PCLFE_ESYNC:-1}"
 PCLFE_WINEDEBUG="${PCLFE_WINEDEBUG:--all}"
 PCLFE_RENDERER="${PCLFE_RENDERER:-auto}"
-PCLFE_UPDATE_MANIFEST="${PCLFE_UPDATE_MANIFEST:-https://raw.githubusercontent.com/FireWaterDog/Plain-Craft-Launcher-FireWaterDog-Edition/main/version.json}"
+# 更新清单默认来源：按顺序回退（raw 在国内常被重置，jsDelivr 作为备用）。
+PCLFE_DEFAULT_MANIFEST="https://raw.githubusercontent.com/FireWaterDog/Plain-Craft-Launcher-FireWaterDog-Edition/main/version.json https://cdn.jsdelivr.net/gh/FireWaterDog/Plain-Craft-Launcher-FireWaterDog-Edition@main/version.json"
+PCLFE_UPDATE_MANIFEST="${PCLFE_UPDATE_MANIFEST:-$PCLFE_DEFAULT_MANIFEST}"
 
 # ============================== 输出 ==============================
 
@@ -198,7 +200,10 @@ save_config() {
         printf 'PCLFE_ESYNC=%s\n' "$PCLFE_ESYNC"
         printf 'PCLFE_RENDERER=%s\n' "$PCLFE_RENDERER"
         printf 'PCLFE_WINEDEBUG=%s\n' "$PCLFE_WINEDEBUG"
-        printf 'PCLFE_UPDATE_MANIFEST=%s\n' "$PCLFE_UPDATE_MANIFEST"
+        # 只有用户改过清单来源时才落盘，避免把默认值写死、以后无法跟随程序更新。
+        if [ "$PCLFE_UPDATE_MANIFEST" != "$PCLFE_DEFAULT_MANIFEST" ]; then
+            printf 'PCLFE_UPDATE_MANIFEST=%s\n' "$PCLFE_UPDATE_MANIFEST"
+        fi
     } > "$PCLFE_CONFIG"
 }
 

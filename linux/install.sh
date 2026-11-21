@@ -61,6 +61,8 @@ export PCLFE_HOME
 mkdir -p "$PCLFE_HOME/bin" "$PCLFE_HOME/lib" "$PCLFE_HOME/packaging" \
          "$PCLFE_HOME/app" "$PCLFE_HOME/jre" "$PCLFE_HOME/logs" \
          "$PCLFE_HOME/cache" "$PCLFE_HOME/state"
+# 标记文件：让 <home>/bin/pclfe 在未设置 PCLFE_HOME 时也能反推出安装位置。
+printf '%s\n' "$PCLFE_HOME" > "$PCLFE_HOME/.pclfe-home"
 PCLFE_APP_DIR="$PCLFE_HOME/app"
 PCLFE_PREFIX_DIR="$PCLFE_HOME/prefix"
 PCLFE_JRE_DIR="$PCLFE_HOME/jre"

@@ -1,0 +1,280 @@
+#!/usr/bin/env sh
+# PCLFE Linux Edition 入口。
+# 用法：pclfe <命令> [参数]，不带参数时等同 pclfe run。
+
+set -u
+
+# 解析脚本真实路径：安装时 ~/.local/bin/pclfe 是指向 <home>/bin/pclfe 的符号链接。
+SELF=$0
+while [ -L "$SELF" ]; do
+    _link=$(readlink "$SELF" 2>/dev/null) || break
+    case "$_link" in
+        /*) SELF=$_link ;;
+        *) SELF=$(dirname "$SELF")/$_link ;;
+    esac
+done
+SELF_DIR=$(cd "$(dirname "$SELF")" && pwd -P)
+
+# 自定义安装目录：安装器会在数据目录写 .pclfe-home 标记，
+# 这样即使没设置 PCLFE_HOME，也能从 <home>/bin/pclfe 反推出正确位置。
+if [ -z "${PCLFE_HOME:-}" ]; then
+    _home_candidate=$(dirname "$SELF_DIR")
+    if [ -f "$_home_candidate/.pclfe-home" ]; then
+        PCLFE_HOME=$_home_candidate
+        export PCLFE_HOME
+    fi
+fi
+
+# 定位依赖库：安装布局 <home>/bin + <home>/lib；开发布局 linux/bin + linux/lib。
+if [ -d "$SELF_DIR/../lib" ]; then
+    LIB_DIR=$(cd "$SELF_DIR/../lib" && pwd -P)
+elif [ -n "${PCLFE_HOME:-}" ] && [ -d "$PCLFE_HOME/lib" ]; then
+    LIB_DIR="$PCLFE_HOME/lib"
+else
+    printf '未找到 lib 目录，安装可能不完整\n' >&2
+    exit 1
+fi
+
+# shellcheck source=../lib/common.sh
+. "$LIB_DIR/common.sh"
+# shellcheck source=../lib/deps.sh
+. "$LIB_DIR/deps.sh"
+# shellcheck source=../lib/prefix.sh
+. "$LIB_DIR/prefix.sh"
+# shellcheck source=../lib/java.sh
+. "$LIB_DIR/java.sh"
+# shellcheck source=../lib/webview2.sh
+. "$LIB_DIR/webview2.sh"
+# shellcheck source=../lib/update.sh
+. "$LIB_DIR/update.sh"
+# shellcheck source=../lib/runtime.sh
+. "$LIB_DIR/runtime.sh"
+# shellcheck source=../lib/diag.sh
+. "$LIB_DIR/diag.sh"
+
+load_config
+
+# ============================== 帮助 ==============================
+
+usage() {
+    cat <<EOF
+$PCLFE_NAME —— 在 Linux 上以 Wine 运行 PCLFE
+
+用法：
+  pclfe [命令] [参数]
+
+命令：
+  run [参数...]        启动启动器（默认命令）
+  setup                首次初始化：Wine 前缀 + .NET Framework 4.8 + 组件
+  update               从发布页下载/更新启动器本体（校验 SHA256）
+  install --from PATH  从本地 .exe / .zip / 目录安装启动器
+  java list            查看已安装的 Windows 版 Java
+  java install [版本]  安装 Java（默认 21，写入 JAVA_HOME 供 PCL 扫描）
+  java remove [版本]   删除已安装的 Java
+  webview2 install     安装 WebView2 运行时（微软正版登录需要）
+  prefix status        查看 Wine 前缀状态
+  prefix reset         重建 Wine 前缀（旧前缀会改名保留）
+  prefix winecfg       打开 winecfg 调整模拟器设置
+  prefix winetricks    打开 winetricks 图形界面
+  doctor               环境自检，输出可操作的修复建议
+  config show          查看当前配置
+  config set KEY VAL   修改配置（DPI/DXVK/ESYNC/RENDERER/WINEDEBUG）
+  logs                 列出运行日志路径
+  version              显示版本信息
+  help                 显示本帮助
+
+常用环境变量：
+  PCLFE_HOME           数据目录，默认 ~/.local/share/pclfe-linux
+  PCLFE_DPI            界面缩放（96=100%，120=125%，144=150%）
+  PCLFE_DXVK           设为 1 用 DXVK 渲染（需要 winetricks -q dxvk）
+  PCLFE_JAVA_MAJOR     启动时自动安装的 Java 主版本（未安装任何 Java 时不生效）
+  PCLFE_WEBVIEW2_FOLDER 外部 WebView2 固定版本目录（Windows 路径）
+
+示例：
+  pclfe setup && pclfe update && pclfe run
+  pclfe install --from ~/下载/Plain.Craft.Launcher.2.exe
+  PCLFE_DPI=120 pclfe run
+EOF
+}
+
+# ============================== 命令 ==============================
+
+cmd_setup() {
+    skip_components=0
+    skip_webview2=0
+    for _arg in "$@"; do
+        case "$_arg" in
+            --skip-components) skip_components=1 ;;
+            --skip-webview2) skip_webview2=1 ;;
+            *) die "未知参数：$_arg" ;;
+        esac
+    done
+
+    deps_require
+    ensure_dirs
+
+    prefix_create || return 1
+    if [ "$skip_components" -eq 0 ]; then
+        prefix_install_components || return 1
+    else
+        warn "已跳过组件安装（.NET Framework 4.8 需要另行安装）"
+    fi
+    prefix_tweaks
+
+    if [ "$skip_webview2" -eq 0 ]; then
+        step "准备 WebView2（可选，失败不影响启动）"
+        webview2_install || warn "WebView2 未安装，正版登录可能不可用"
+    fi
+
+    # 把仓库里的版本清单带到数据目录，供 doctor 校验。
+    for _man in "$SELF_DIR/../../version.json" "$SELF_DIR/../version.json"; do
+        if [ -r "$_man" ] && [ ! -r "$PCLFE_HOME/version.json" ]; then
+            cp -f "$_man" "$PCLFE_HOME/version.json" 2>/dev/null || true
+            break
+        fi
+    done
+
+    log ""
+    ok "初始化完成"
+    if runtime_exe >/dev/null 2>&1; then
+        dim "下一步：pclfe run"
+    else
+        dim "下一步：pclfe update   （下载启动器本体）"
+    fi
+}
+
+cmd_run() {
+    runtime_run "$@"
+}
+
+cmd_update() {
+    update_apply
+}
+
+cmd_install() {
+    _from=''
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --from) shift; _from=${1:-} ;;
+            --from=*) _from=${1#--from=} ;;
+            *) die "未知参数：$1" ;;
+        esac
+        shift
+    done
+    [ -n "$_from" ] || die "用法：pclfe install --from <exe|zip|目录>"
+    ensure_dirs
+    app_install_from "$_from"
+}
+
+cmd_java() {
+    _sub=${1:-list}
+    [ $# -gt 0 ] && shift
+    case "$_sub" in
+        list|status) java_status ;;
+        install) java_install "${1:-${PCLFE_JAVA_MAJOR:-21}}" "${2:-auto}" ;;
+        remove|rm) [ $# -ge 1 ] || die "用法：pclfe java remove <版本>"; java_remove "$1" ;;
+        *) die "未知子命令：java $_sub" ;;
+    esac
+}
+
+cmd_webview2() {
+    _sub=${1:-status}
+    case "$_sub" in
+        status) webview2_status ;;
+        install) webview2_install ;;
+        *) die "未知子命令：webview2 $_sub" ;;
+    esac
+}
+
+cmd_prefix() {
+    _sub=${1:-status}
+    case "$_sub" in
+        status) prefix_status ;;
+        reset) prefix_reset; prefix_tweaks ;;
+        winecfg)
+            deps_require
+            WINEPREFIX="$PCLFE_PREFIX_DIR" WINEDEBUG=-all "$(wine_bin)" winecfg
+            ;;
+        winetricks)
+            deps_require
+            WINEPREFIX="$PCLFE_PREFIX_DIR" WINEARCH=win64 winetricks
+            ;;
+        *) die "未知子命令：prefix $_sub" ;;
+    esac
+}
+
+cmd_config() {
+    _sub=${1:-show}
+    [ $# -gt 0 ] && shift
+    case "$_sub" in
+        show)
+            log "配置文件：$PCLFE_CONFIG"
+            if [ -r "$PCLFE_CONFIG" ]; then
+                cat "$PCLFE_CONFIG"
+            else
+                log "（尚未生成，使用默认值）"
+            fi
+            ;;
+        set)
+            [ $# -ge 2 ] || die "用法：pclfe config set <KEY> <VALUE>"
+            _key=$1
+            shift
+            # 值里可能有空格（例如多个清单地址），把剩余参数整体当作值。
+            _val="$*"
+            case "$_key" in
+                PCLFE_DPI) PCLFE_DPI=$_val ;;
+                PCLFE_DXVK) PCLFE_DXVK=$_val ;;
+                PCLFE_ESYNC) PCLFE_ESYNC=$_val ;;
+                PCLFE_RENDERER) PCLFE_RENDERER=$_val ;;
+                PCLFE_WINEDEBUG) PCLFE_WINEDEBUG=$_val ;;
+                PCLFE_UPDATE_MANIFEST) PCLFE_UPDATE_MANIFEST=$_val ;;
+                *) die "不支持的配置项：$_key" ;;
+            esac
+            save_config
+            ok "已保存：$_key=$_val"
+            ;;
+        *) die "未知子命令：config $_sub" ;;
+    esac
+}
+
+cmd_logs() {
+    ensure_dirs
+    log "日志目录：$PCLFE_LOG_DIR"
+    ls -lt "$PCLFE_LOG_DIR" 2>/dev/null | head -n 10 | sed 's/^/  /'
+}
+
+cmd_version() {
+    log "$PCLFE_NAME"
+    log "  启动器版本：$(app_current_version)"
+    log "  数据目录：$PCLFE_HOME"
+    log "  配置文件：$PCLFE_CONFIG"
+    if _exe=$(runtime_exe); then
+        log "  程序路径：$_exe"
+    else
+        log "  程序路径：未安装"
+    fi
+}
+
+# ============================== 分发 ==============================
+
+cmd=${1:-run}
+if [ $# -gt 0 ]; then
+    shift
+fi
+
+case "$cmd" in
+    run) cmd_run "$@" ;;
+    setup) cmd_setup "$@" ;;
+    update) cmd_update "$@" ;;
+    install) cmd_install "$@" ;;
+    java) cmd_java "$@" ;;
+    webview2) cmd_webview2 "$@" ;;
+    prefix) cmd_prefix "$@" ;;
+    doctor|check) diag_run ;;
+    config) cmd_config "$@" ;;
+    logs) cmd_logs ;;
+    version|-V|--version) cmd_version ;;
+    help|-h|--help) usage ;;
+    --) cmd_run "$@" ;;
+    *) err "未知命令：$cmd"; usage; exit 1 ;;
+esac
