@@ -169,6 +169,31 @@ diag_run() {
         _d_warn "未安装 pactl（pulseaudio-utils），无法检查音频"
     fi
 
+    # ---------- 桌面项 ----------
+    log ""
+    log "${C_CYAN}[桌面项]${C_RESET}"
+    _desktop_found=''
+    for _df in "$HOME/.local/share/applications/pclfe.desktop" /usr/share/applications/pclfe.desktop; do
+        [ -f "$_df" ] || continue
+        _desktop_found=1
+        # Exec 可能是 `"带 空格 的路径" run` 或 `/path/pclfe run`，都取可执行文件本身
+        _line=$(sed -n 's/^Exec=//p' "$_df" | head -n 1)
+        case "$_line" in
+            \"*) _target=$(printf '%s' "$_line" | sed 's/^"\([^"]*\)".*/\1/') ;;
+            *)   _target=$(printf '%s' "$_line" | awk '{print $1}') ;;
+        esac
+        if [ -n "$_target" ] && [ -x "$_target" ]; then
+            _d_ok "菜单项：$_df → $_target"
+        else
+            _d_warn "菜单项指向的程序不存在：${_target:-（未解析出路径）}"
+            _d_hint "pclfe desktop    # 重写菜单项"
+        fi
+    done
+    if [ -z "$_desktop_found" ]; then
+        _d_warn "没有找到 PCLFE 的应用菜单项"
+        _d_hint "pclfe desktop    # 生成菜单项"
+    fi
+
     # ---------- 其他 ----------
     log ""
     log "${C_CYAN}[其他]${C_RESET}"
@@ -199,4 +224,58 @@ diag_run() {
         ok "环境检查全部通过"
         return 0
     fi
+}
+
+# 生成一份可直接粘贴的诊断报告：双击/启动失败时用这个定位。
+diag_report() {
+    _out="$PCLFE_LOG_DIR/diagnose-$(timestamp).txt"
+    mkdir -p "$PCLFE_LOG_DIR" 2>/dev/null || true
+    {
+        printf 'PCLFE 诊断报告\n生成时间：%s\n\n' "$(date '+%Y-%m-%d %H:%M:%S %z' 2>/dev/null)"
+
+        printf '== 系统 ==\n'
+        uname -a 2>/dev/null
+        grep -E '^(PRETTY_NAME|VERSION_ID)=' /etc/os-release 2>/dev/null
+        printf '桌面会话：DISPLAY=%s WAYLAND_DISPLAY=%s XDG_CURRENT_DESKTOP=%s\n' \
+            "${DISPLAY:-未设置}" "${WAYLAND_DISPLAY:-未设置}" "${XDG_CURRENT_DESKTOP:-未设置}"
+        printf '对话框工具：%s\n' "$(first_of zenity kdialog xmessage 2>/dev/null || printf '无')"
+        printf '终端程序：%s\n' "$(first_of x-terminal-emulator gnome-terminal konsole xfce4-terminal deepin-terminal xterm 2>/dev/null || printf '无')"
+
+        printf '\n== 安装位置 ==\n'
+        printf '程序目录：%s\n' "${PCLFE_PROGRAM_DIR:-未知}"
+        ls -l "${PCLFE_PROGRAM_DIR:-/nonexistent}/bin/pclfe" 2>&1
+        printf '数据目录：%s\n' "$PCLFE_HOME"
+        du -sh "$PCLFE_HOME" 2>/dev/null
+        printf '启动器本体：\n'
+        ls -l "$PCLFE_APP_DIR" 2>&1 | head -n 6
+
+        printf '\n== 桌面项 ==\n'
+        for _f in /usr/share/applications/pclfe.desktop "$HOME/.local/share/applications/pclfe.desktop"; do
+            if [ -f "$_f" ]; then
+                printf '%s\n' "$_f"
+                grep -E '^(Exec|TryExec|Icon|Terminal|NoDisplay)=' "$_f" 2>/dev/null
+            fi
+        done
+
+        printf '\n== 自检 ==\n'
+        diag_run 2>&1 || true
+
+        printf '\n== 最近提示（gui.log）==\n'
+        tail -n 20 "$PCLFE_LOG_DIR/gui.log" 2>/dev/null || printf '（无）\n'
+
+        printf '\n== 最近一次运行日志 ==\n'
+        _last=$(ls -t "$PCLFE_LOG_DIR"/run-*.log 2>/dev/null | head -n 1)
+        if [ -n "$_last" ]; then
+            printf '%s\n' "$_last"
+            tail -n 20 "$_last" 2>/dev/null
+        else
+            printf '（无）\n'
+        fi
+    } > "$_out" 2>&1
+
+    ok "诊断报告：$_out"
+    printf '\n'
+    sed -n '1,40p' "$_out"
+    printf '\n'
+    log "把这份文件（或上面的输出）发给开发者即可定位问题。"
 }

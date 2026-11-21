@@ -39,6 +39,10 @@ gui_error() {
     if [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] && have notify-send; then
         notify-send -u critical -a PCLFE "$_title" "$_body" 2>/dev/null && return 0
     fi
+    # 没有对话框工具：直接开终端把话说完，别让用户对着图标发呆
+    if [ ! -t 1 ] && gui_show_in_terminal "$_title" "$_body" ""; then
+        return 0
+    fi
     # 没有图形工具时至少写到 stderr，并提示日志位置
     err "$_title：$_body"
     dim "详情已写入：$PCLFE_LOG_DIR/gui.log"
@@ -60,7 +64,7 @@ gui_confirm() {
 gui_open_terminal() {
     _cmd=$1
     _hold="$_cmd; printf '\\n按回车键关闭此窗口…'; read _"
-    for _t in x-terminal-emulator gnome-terminal konsole xfce4-terminal mate-terminal tilix alacritty kitty xterm; do
+    for _t in x-terminal-emulator gnome-terminal konsole xfce4-terminal mate-terminal tilix deepin-terminal alacritty kitty xterm; do
         have "$_t" || continue
         case "$_t" in
             gnome-terminal)
@@ -71,6 +75,21 @@ gui_open_terminal() {
         return 0
     done
     return 1
+}
+
+# 没有对话框工具时，把说明写进文件并在终端里显示，保证“双击”至少有反馈。
+gui_show_in_terminal() {
+    _title=$1
+    _body=$2
+    _action=${3:-}
+    _msgfile="$PCLFE_LOG_DIR/last-message.txt"
+    mkdir -p "$PCLFE_LOG_DIR" 2>/dev/null || true
+    printf '%s\n\n%s\n' "$_title" "$_body" > "$_msgfile" 2>/dev/null || true
+    if [ -n "$_action" ]; then
+        gui_open_terminal "cat '$_msgfile'; echo; $_action"
+    else
+        gui_open_terminal "cat '$_msgfile'"
+    fi
 }
 
 # 双击图标时的统一入口：未就绪就提示，并询问是否打开终端完成初始化
@@ -124,6 +143,12 @@ Wine 是运行本启动器的前提，请先安装：
         fi
         gui_error "无法打开终端" "请手动在终端执行：$_action"
         return 0
+    fi
+    # 没有对话框工具（连“是/否”都问不了）：直接开终端，把说明和后续命令一起给出来
+    if ! gui_available; then
+        if gui_show_in_terminal "$_title" "$_body" "$_action"; then
+            return 0
+        fi
     fi
     gui_error "$_title" "$_body"
     return 0

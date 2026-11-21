@@ -82,6 +82,8 @@ $PCLFE_NAME —— 在 Linux 上以 Wine 运行 PCLFE
   prefix winecfg       打开 winecfg 调整模拟器设置
   prefix winetricks    打开 winetricks 图形界面
   doctor               环境自检，输出可操作的修复建议
+  diagnose             生成诊断报告（双击打不开时用）
+  desktop              重写应用菜单项（修复菜单指向失效路径）
   config show          查看当前配置
   config set KEY VAL   修改配置（DPI/DXVK/ESYNC/RENDERER/WINEDEBUG）
   logs                 列出运行日志路径
@@ -265,6 +267,48 @@ cmd_logs() {
     ls -lt "$PCLFE_LOG_DIR" 2>/dev/null | head -n 10 | sed 's/^/  /'
 }
 
+cmd_desktop() {
+    _dir="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+    _icons="${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor/256x256/apps"
+    _bin="$SELF_DIR/pclfe"
+    mkdir -p "$_dir" "$_icons" || die "无法创建 $_dir"
+
+    # 图标：优先用随程序附带的，没有就沿用系统里已有的
+    _icon_src="$(dirname "$SELF_DIR")/packaging/icons/pclfe.png"
+    if [ -f "$_icon_src" ]; then
+        cp -f "$_icon_src" "$_icons/pclfe.png"
+    elif [ ! -f "$_icons/pclfe.png" ]; then
+        warn "未找到图标文件，桌面项会使用默认图标"
+    fi
+
+    cat > "$_dir/pclfe.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=PCLFE
+Name[zh_CN]=Plain Craft Launcher FireWaterDog Edition
+Comment=Minecraft launcher (PCLFE Linux Edition, via Wine)
+Comment[zh_CN]=Minecraft 启动器（PCLFE Linux 版，基于 Wine）
+Exec="$_bin" run
+TryExec=$_bin
+Icon=pclfe
+Terminal=false
+Categories=Game;
+Keywords=Minecraft;Launcher;PCL;
+StartupWMClass=Plain Craft Launcher 2.exe
+EOF
+    chmod 644 "$_dir/pclfe.desktop"
+
+    if have update-desktop-database; then
+        update-desktop-database "$_dir" >/dev/null 2>&1 || true
+    fi
+    if have gtk-update-icon-cache; then
+        gtk-update-icon-cache -q -t -f "${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor" >/dev/null 2>&1 || true
+    fi
+    ok "桌面项已写入：$_dir/pclfe.desktop"
+    dim "指向：$_bin"
+    dim "若菜单里还显示旧条目，注销后重新登录一次。"
+}
+
 cmd_version() {
     log "$PCLFE_NAME"
     log "  启动器版本：$(app_current_version)"
@@ -293,6 +337,8 @@ case "$cmd" in
     webview2) cmd_webview2 "$@" ;;
     prefix) cmd_prefix "$@" ;;
     doctor|check) diag_run ;;
+    diagnose|report) diag_report ;;
+    desktop) cmd_desktop ;;
     config) cmd_config "$@" ;;
     logs) cmd_logs ;;
     version|-V|--version) cmd_version ;;
