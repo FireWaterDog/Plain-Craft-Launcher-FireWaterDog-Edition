@@ -15,6 +15,8 @@ set -u
 SRC_DIR=$(cd "$(dirname "$0")" && pwd -P)
 # shellcheck source=lib/common.sh
 . "$SRC_DIR/lib/common.sh"
+# shellcheck source=lib/deps.sh
+. "$SRC_DIR/lib/deps.sh"
 
 OUT_DIR=''
 BUNDLE_EXE=${PCLFE_BUNDLE_EXE:-}
