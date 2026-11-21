@@ -171,7 +171,7 @@ fi
 
 echo ""
 echo "== 自定义安装目录 =="
-"$ROOT_DIR/install.sh" --prefix "$TMP_ROOT/alt-home" --bin "$TMP_ROOT/alt-bin" \
+run_iso "$ROOT_DIR/install.sh" --prefix "$TMP_ROOT/alt-home" --bin "$TMP_ROOT/alt-bin" \
     --no-deps --no-setup >/dev/null 2>&1
 _alt_out=$( ( HOME="$TMP_ROOT/home" XDG_DATA_HOME="$TMP_ROOT/data" \
               XDG_CONFIG_HOME="$TMP_ROOT/config"; export HOME XDG_DATA_HOME XDG_CONFIG_HOME; \
