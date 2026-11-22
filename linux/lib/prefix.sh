@@ -74,6 +74,27 @@ prefix_install_components() {
     have winetricks || die "未找到 winetricks，无法安装 .NET Framework 4.8"
     wine32_hint || true
 
+    # 允许喂本地离线安装包：winetricks 会优先用缓存，省掉它自己的慢速下载。
+    if [ -n "${PCLFE_DOTNET_INSTALLER:-}" ]; then
+        if [ -f "$PCLFE_DOTNET_INSTALLER" ]; then
+            _wt_cache="${XDG_CACHE_HOME:-$HOME/.cache}/winetricks"
+            _name=$(basename "$PCLFE_DOTNET_INSTALLER")
+            # winetricks 认的是小写文件名，官方下载页给的是 NDP48-x86-x64-AllOS-ENU.exe
+            case "$_name" in
+                [Nn][Dd][Pp]48*.exe|[Nn][Dd][Pp]48*.EXE) _alias='ndp48-x86-x64-allos-enu.exe' ;;
+                *) _alias='' ;;
+            esac
+            mkdir -p "$_wt_cache/dotnet48" 2>/dev/null || true
+            for _dir in "$_wt_cache/dotnet48" "$_wt_cache"; do
+                cp -f "$PCLFE_DOTNET_INSTALLER" "$_dir/$_name" 2>/dev/null || true
+                [ -n "$_alias" ] && cp -f "$PCLFE_DOTNET_INSTALLER" "$_dir/$_alias" 2>/dev/null || true
+            done
+            dim "已放入 winetricks 缓存：$_wt_cache/dotnet48/${_alias:-$_name}"
+        else
+            warn "PCLFE_DOTNET_INSTALLER 指向的文件不存在：$PCLFE_DOTNET_INSTALLER"
+        fi
+    fi
+
     step "安装 Wine 组件（首次约 10~30 分钟，dotnet48 需要联网下载）"
     dim "组件：$PCLFE_WINETRICKS_VERBS"
     dim "如果长时间停在 'Executing w_do_call dotnet48'，多半是下载慢，可换网络后重试。"

@@ -71,6 +71,9 @@ $PCLFE_NAME —— 在 Linux 上以 Wine 运行 PCLFE
 命令：
   run [参数...]        启动启动器（默认命令）
   setup                首次初始化：Wine 前缀 + .NET Framework 4.8 + 组件
+        --dotnet-installer=FILE   用本地下载好的 .NET 4.8 离线安装包（省去 winetricks 慢速下载）
+        --skip-components         只建前缀，不装组件
+        --skip-webview2           不装 WebView2
   update               从发布页下载/更新启动器本体（校验 SHA256）
   install --from PATH  从本地 .exe / .zip / 目录安装启动器
   java list            查看已安装的 Windows 版 Java
@@ -113,6 +116,10 @@ cmd_setup() {
         case "$_arg" in
             --skip-components) skip_components=1 ;;
             --skip-webview2) skip_webview2=1 ;;
+            --dotnet-installer=*) PCLFE_DOTNET_INSTALLER=${_arg#--dotnet-installer=} ;;
+            --dotnet-installer)
+                die "--dotnet-installer 需要路径，例如 --dotnet-installer=/path/ndp48-x86-x64-allos-enu.exe"
+                ;;
             *) die "未知参数：$_arg" ;;
         esac
     done

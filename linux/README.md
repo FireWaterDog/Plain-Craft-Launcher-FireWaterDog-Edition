@@ -327,6 +327,28 @@ chmod +x pclfe-<版本>-x86_64.AppImage
 
 部分文件管理器（Nautilus 等）默认不允许运行可执行文件，需在「首选项 → 行为」里允许，或直接在终端 `./pclfe-*.AppImage`。缺 FUSE 时用 `--appimage-extract-and-run`。
 
+**`pclfe setup` 卡在 dotnet48 / 下载失败**
+
+`.NET Framework 4.8` 的安装包有 110 MB+，winetricks 直连微软 CDN 在国内经常超时。可以先用浏览器下好离线包，再喂给 `pclfe`：
+
+```sh
+# 官方离线安装包（英文版，winetricks 认的就是这个）
+# https://go.microsoft.com/fwlink/?linkid=2088631
+pclfe setup --dotnet-installer=~/下载/NDP48-x86-x64-AllOS-ENU.exe
+```
+
+它会自动放进 `~/.cache/winetricks/dotnet48/` 并按 winetricks 认的文件名放一份，跳过联网下载那一步。
+
+如果仍然失败，看日志：
+
+```sh
+tail -40 "$(ls -t ~/.local/share/pclfe-linux/logs/setup-*.log | head -1)"
+```
+
+**为什么不能直接装 Linux 版 .NET？**
+
+PCL2 是 VB.NET + **WPF** 程序，目标框架 `net48`（.NET Framework 4.8），不是 .NET 8/9。WPF 只有 Windows 实现，Linux 上的 .NET 运行时无法运行它，所以必须在 Wine 里装 Windows 版的 .NET Framework 4.8。微软的 `dotnet-install.sh` 装的是跨平台运行时，帮不上忙。
+
 **界面太小 / 太大**
 
 `pclfe config set PCLFE_DPI 120`（125%），`144` 为 150%。
