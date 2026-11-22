@@ -298,6 +298,21 @@ StartupWMClass=Plain Craft Launcher 2.exe
 EOF
     chmod 644 "$_dir/pclfe.desktop"
 
+    # 调试入口：终端里启动并停住，方便看报错
+    cat > "$_dir/pclfe-debug.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=PCLFE (调试模式)
+Name[zh_CN]=PCLFE（调试模式）
+Comment[zh_CN]=在终端中启动并显示完整输出，用于排查打不开的问题
+Exec=sh -c "'$_bin' run; echo; echo 按回车键关闭此窗口…; read _x"
+TryExec=$_bin
+Icon=pclfe
+Terminal=true
+Categories=Game;
+EOF
+    chmod 644 "$_dir/pclfe-debug.desktop"
+
     if have update-desktop-database; then
         update-desktop-database "$_dir" >/dev/null 2>&1 || true
     fi

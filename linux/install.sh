@@ -158,6 +158,20 @@ Categories=Game;
 Keywords=Minecraft;Launcher;PCL;
 StartupWMClass=Plain Craft Launcher 2.exe
 EOF
+
+# 调试入口：终端里启动并停住，方便排查“双击没反应”
+cat > "$DESKTOP_DIR/pclfe-debug.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=PCLFE (调试模式)
+Name[zh_CN]=PCLFE（调试模式）
+Comment[zh_CN]=在终端中启动并显示完整输出，用于排查打不开的问题
+Exec=sh -c "'$PCLFE_HOME/bin/pclfe' run; echo; echo 按回车键关闭此窗口…; read _x"
+TryExec=$PCLFE_HOME/bin/pclfe
+Icon=pclfe
+Terminal=true
+Categories=Game;
+EOF
 ok "桌面项：$DESKTOP_DIR/pclfe.desktop"
 if have update-desktop-database; then
     update-desktop-database "$DESKTOP_DIR" >/dev/null 2>&1 || true

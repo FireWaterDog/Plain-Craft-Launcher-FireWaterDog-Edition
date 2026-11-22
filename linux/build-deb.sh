@@ -100,6 +100,23 @@ StartupWMClass=Plain Craft Launcher 2.exe
 DESKTOP
 chmod 644 "$ROOT/usr/share/applications/pclfe.desktop"
 
+# 调试入口：在终端里启动并停住，方便看报错（双击主图标没反应时用）
+cat > "$ROOT/usr/share/applications/pclfe-debug.desktop" <<'DESKTOP'
+[Desktop Entry]
+Type=Application
+Name=PCLFE (调试模式)
+Name[zh_CN]=PCLFE（调试模式）
+Comment=Start in a terminal and show full output
+Comment[zh_CN]=在终端中启动并显示完整输出，用于排查打不开的问题
+Exec=sh -c "/usr/bin/pclfe run; echo; echo 按回车键关闭此窗口…; read _x"
+TryExec=/usr/bin/pclfe
+Icon=pclfe
+Terminal=true
+Categories=Game;
+Keywords=Minecraft;Launcher;PCL;Debug;
+DESKTOP
+chmod 644 "$ROOT/usr/share/applications/pclfe-debug.desktop"
+
 # 离线包：把启动器本体放进 /usr/lib/pclfe/app，首次运行会复制到用户目录
 if [ -n "$BUNDLE_EXE" ]; then
     [ -f "$BUNDLE_EXE" ] || die "启动器本体不存在：$BUNDLE_EXE"
