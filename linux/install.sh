@@ -77,6 +77,18 @@ cp -f "$SRC_DIR/bin/pclfe" "$PCLFE_HOME/bin/pclfe"
 cp -f "$SRC_DIR/lib/"*.sh "$PCLFE_HOME/lib/"
 [ -f "$SRC_DIR/README.md" ] && cp -f "$SRC_DIR/README.md" "$PCLFE_HOME/README.md"
 [ -d "$SRC_DIR/packaging" ] && cp -Rf "$SRC_DIR/packaging/." "$PCLFE_HOME/packaging/"
+# 内置的 .NET 4.8 安装包（离线包才有）
+if [ -d "$SRC_DIR/dotnet" ]; then
+    mkdir -p "$PCLFE_HOME/dotnet"
+    cp -Rf "$SRC_DIR/dotnet/." "$PCLFE_HOME/dotnet/" 2>/dev/null || true
+    dim "已安装内置 .NET 4.8 安装包"
+fi
+# 内置的便携版 Wine（压缩包，首次 setup 解压）
+if [ -d "$SRC_DIR/vendor" ]; then
+    mkdir -p "$PCLFE_HOME/vendor"
+    cp -Rf "$SRC_DIR/vendor/." "$PCLFE_HOME/vendor/" 2>/dev/null || true
+    dim "已安装内置便携 Wine（首次 setup 时解压）"
+fi
 chmod +x "$PCLFE_HOME/bin/pclfe"
 ok "程序文件已复制"
 

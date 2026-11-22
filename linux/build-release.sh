@@ -16,6 +16,8 @@ SRC_DIR=$(cd "$(dirname "$0")" && pwd -P)
 
 OUT_DIR=''
 BUNDLE_EXE=${PCLFE_BUNDLE_EXE:-}
+BUNDLE_DOTNET=''
+BUNDLE_WINE=''
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -25,8 +27,12 @@ while [ $# -gt 0 ]; do
             shift
             ;;
         --with-exe=*) BUNDLE_EXE=${1#--with-exe=} ;;
+        --with-dotnet) BUNDLE_DOTNET=auto ;;
+        --with-dotnet=*) BUNDLE_DOTNET=${1#--with-dotnet=} ;;
+        --with-wine) BUNDLE_WINE=auto ;;
+        --with-wine=*) BUNDLE_WINE=${1#--with-wine=} ;;
         --help|-h)
-            log "用法：sh build-release.sh [输出目录] [--with-exe <启动器.exe>]"
+            log "用法：sh build-release.sh [输出目录] [--with-exe <启动器.exe>] [--with-dotnet[=安装包]] [--with-wine[=tar.xz]]"
             exit 0
             ;;
         -*) die "未知参数：$1" ;;
@@ -40,7 +46,9 @@ VERSION=${PCLFE_VERSION:-$(pclfe_version)}
 [ "$VERSION" = "unknown" ] && VERSION=$(date '+%Y%m%d')
 
 SUFFIX=''
-[ -n "$BUNDLE_EXE" ] && SUFFIX='-offline'
+[ -n "$BUNDLE_EXE" ] && SUFFIX="${SUFFIX}-offline"
+[ -n "$BUNDLE_DOTNET" ] && SUFFIX="${SUFFIX}-net"
+[ -n "$BUNDLE_WINE" ] && SUFFIX="${SUFFIX}-wine"
 PKG_NAME="pclfe-linux-$VERSION$SUFFIX"
 STAGE="$OUT_DIR/$PKG_NAME"
 
@@ -76,6 +84,28 @@ if [ -n "$BUNDLE_EXE" ]; then
     fi
 fi
 
+# 离线包：把 .NET 4.8 安装包放进 dotnet/，pclfe setup 会自动使用
+if [ -n "$BUNDLE_DOTNET" ]; then
+    if [ "$BUNDLE_DOTNET" = "auto" ]; then
+        BUNDLE_DOTNET=$(dotnet_installer_fetch) || die "下载 .NET Framework 4.8 安装包失败"
+    fi
+    [ -f "$BUNDLE_DOTNET" ] || die ".NET 安装包不存在：$BUNDLE_DOTNET"
+    mkdir -p "$STAGE/dotnet"
+    cp -f "$BUNDLE_DOTNET" "$STAGE/dotnet/$PCLFE_DOTNET_FILE"
+    dim "内置 .NET 4.8：$(human_size "$STAGE/dotnet/$PCLFE_DOTNET_FILE")"
+fi
+
+# 便携版 Wine（压缩包形式随包分发，首跑自动解压）
+if [ -n "$BUNDLE_WINE" ]; then
+    if [ "$BUNDLE_WINE" = "auto" ]; then
+        BUNDLE_WINE=$(wine_vendor_fetch) || die "下载便携版 Wine 失败"
+    fi
+    [ -f "$BUNDLE_WINE" ] || die "Wine 压缩包不存在：$BUNDLE_WINE"
+    mkdir -p "$STAGE/vendor"
+    cp -f "$BUNDLE_WINE" "$STAGE/vendor/$(basename "$BUNDLE_WINE")"
+    dim "内置 Wine：$(human_size "$STAGE/vendor/$(basename "$BUNDLE_WINE")")"
+fi
+
 # 统一权限与行尾（防止在 Windows 上打包带了 CRLF）。
 find "$STAGE" -type f -name '*.sh' -exec chmod +x {} +
 chmod +x "$STAGE/bin/pclfe" "$STAGE/install.sh" "$STAGE/uninstall.sh"
@@ -98,5 +128,7 @@ rm -rf "$STAGE"
 log ""
 log "分发方式："
 log "  tar xzf $PKG_NAME.tar.gz && cd $PKG_NAME && ./install.sh"
-[ -n "$SUFFIX" ] && log "  离线包已内置启动器，安装后直接 pclfe setup && pclfe run（无需 pclfe update）"
+[ -n "$BUNDLE_EXE" ] && log "  已内置启动器，安装后无需 pclfe update"
+[ -n "$BUNDLE_DOTNET" ] && log "  已内置 .NET 4.8 安装包，setup 时不再联网下载"
+[ -n "$BUNDLE_WINE" ] && log "  已内置便携 Wine，首次 setup 自动解压，无需系统安装 Wine"
 exit 0

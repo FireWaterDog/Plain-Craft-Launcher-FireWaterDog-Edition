@@ -22,13 +22,19 @@ SRC_DIR=$(cd "$(dirname "$0")" && pwd -P)
 
 OUT_DIR=''
 BUNDLE_EXE=${PCLFE_BUNDLE_EXE:-}
+BUNDLE_DOTNET=''
+BUNDLE_WINE=''
 
 while [ $# -gt 0 ]; do
     case "$1" in
         --with-exe) [ $# -ge 2 ] || die "--with-exe 需要参数"; BUNDLE_EXE=$2; shift ;;
         --with-exe=*) BUNDLE_EXE=${1#--with-exe=} ;;
+        --with-dotnet) BUNDLE_DOTNET=auto ;;
+        --with-dotnet=*) BUNDLE_DOTNET=${1#--with-dotnet=} ;;
+        --with-wine) BUNDLE_WINE=auto ;;
+        --with-wine=*) BUNDLE_WINE=${1#--with-wine=} ;;
         --help|-h)
-            log "用法：sh build-deb.sh [输出目录] [--with-exe <启动器.exe>]"
+            log "用法：sh build-deb.sh [输出目录] [--with-exe <启动器.exe>] [--with-dotnet[=安装包]] [--with-wine[=tar.xz]]"
             exit 0
             ;;
         -*) die "未知参数：$1" ;;
@@ -40,6 +46,11 @@ done
 OUT_DIR=${OUT_DIR:-$SRC_DIR/dist}
 VERSION=${PCLFE_VERSION:-$(pclfe_version)}
 [ "$VERSION" = "unknown" ] && VERSION=0.0.0
+# 内置组件时用版本后缀区分，避免和普通包混淆
+VER_SUFFIX=''
+[ -n "$BUNDLE_DOTNET" ] && VER_SUFFIX="${VER_SUFFIX}+dotnet"
+[ -n "$BUNDLE_WINE" ] && VER_SUFFIX="${VER_SUFFIX}+wine"
+VERSION="${VERSION}${VER_SUFFIX}"
 
 PKG=pclfe
 DEB_NAME="${PKG}_${VERSION}_all.deb"
@@ -127,6 +138,30 @@ if [ -n "$BUNDLE_EXE" ]; then
     [ -n "$_exe_sum" ] && printf '%s  %s\n' "$_exe_sum" "$PCLFE_EXE_NAME" \
         > "$ROOT/usr/lib/pclfe/app/exe.sha256"
     dim "内置启动器：$(basename "$BUNDLE_EXE")（$(human_size "$ROOT/usr/lib/pclfe/app/$PCLFE_EXE_NAME")）"
+fi
+
+# 内置 .NET 4.8 安装包（可选）：放在 /usr/lib/pclfe/dotnet，setup 会自动使用
+if [ -n "$BUNDLE_DOTNET" ]; then
+    if [ "$BUNDLE_DOTNET" = "auto" ]; then
+        BUNDLE_DOTNET=$(dotnet_installer_fetch) || die "下载 .NET Framework 4.8 安装包失败"
+    fi
+    [ -f "$BUNDLE_DOTNET" ] || die ".NET 安装包不存在：$BUNDLE_DOTNET"
+    mkdir -p "$ROOT/usr/lib/pclfe/dotnet"
+    cp -f "$BUNDLE_DOTNET" "$ROOT/usr/lib/pclfe/dotnet/$PCLFE_DOTNET_FILE"
+    chmod 644 "$ROOT/usr/lib/pclfe/dotnet/$PCLFE_DOTNET_FILE"
+    dim "内置 .NET 4.8：$(human_size "$ROOT/usr/lib/pclfe/dotnet/$PCLFE_DOTNET_FILE")"
+fi
+
+# 便携版 Wine（压缩包，首跑自动解压）
+if [ -n "$BUNDLE_WINE" ]; then
+    if [ "$BUNDLE_WINE" = "auto" ]; then
+        BUNDLE_WINE=$(wine_vendor_fetch) || die "下载便携版 Wine 失败"
+    fi
+    [ -f "$BUNDLE_WINE" ] || die "Wine 压缩包不存在：$BUNDLE_WINE"
+    mkdir -p "$ROOT/usr/lib/pclfe/vendor"
+    cp -f "$BUNDLE_WINE" "$ROOT/usr/lib/pclfe/vendor/$(basename "$BUNDLE_WINE")"
+    chmod 644 "$ROOT/usr/lib/pclfe/vendor/$(basename "$BUNDLE_WINE")"
+    dim "内置 Wine：$(human_size "$ROOT/usr/lib/pclfe/vendor/$(basename "$BUNDLE_WINE")")"
 fi
 
 # 版权

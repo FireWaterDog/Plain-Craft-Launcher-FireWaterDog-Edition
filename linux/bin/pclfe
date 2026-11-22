@@ -127,6 +127,10 @@ cmd_setup() {
     deps_require
     ensure_dirs
 
+    # 随包内置的 Wine（压缩包形式），首次 setup 时解压
+    wine_vendor_ensure || true
+    wine_prepare_path || true
+
     prefix_create || return 1
     if [ "$skip_components" -eq 0 ]; then
         prefix_install_components || return 1

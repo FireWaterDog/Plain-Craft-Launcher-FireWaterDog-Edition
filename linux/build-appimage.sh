@@ -20,13 +20,19 @@ SRC_DIR=$(cd "$(dirname "$0")" && pwd -P)
 
 OUT_DIR=''
 BUNDLE_EXE=${PCLFE_BUNDLE_EXE:-}
+BUNDLE_DOTNET=''
+BUNDLE_WINE=''
 
 while [ $# -gt 0 ]; do
     case "$1" in
         --with-exe) [ $# -ge 2 ] || die "--with-exe 需要参数"; BUNDLE_EXE=$2; shift ;;
         --with-exe=*) BUNDLE_EXE=${1#--with-exe=} ;;
+        --with-dotnet) BUNDLE_DOTNET=auto ;;
+        --with-dotnet=*) BUNDLE_DOTNET=${1#--with-dotnet=} ;;
+        --with-wine) BUNDLE_WINE=auto ;;
+        --with-wine=*) BUNDLE_WINE=${1#--with-wine=} ;;
         --help|-h)
-            log "用法：sh build-appimage.sh [输出目录] [--with-exe <启动器.exe>]"
+            log "用法：sh build-appimage.sh [输出目录] [--with-exe <启动器.exe>] [--with-dotnet[=安装包]] [--with-wine[=tar.xz]]"
             exit 0
             ;;
         -*) die "未知参数：$1" ;;
@@ -131,6 +137,17 @@ if [ -n "$BUNDLE_EXE" ]; then
     dim "内置启动器：$(basename "$BUNDLE_EXE")（$(human_size "$APPDIR/usr/lib/pclfe/app/$PCLFE_EXE_NAME")）"
 fi
 
+if [ -n "$BUNDLE_DOTNET" ]; then
+    if [ "$BUNDLE_DOTNET" = "auto" ]; then
+        BUNDLE_DOTNET=$(dotnet_installer_fetch) || die "下载 .NET Framework 4.8 安装包失败"
+    fi
+    [ -f "$BUNDLE_DOTNET" ] || die ".NET 安装包不存在：$BUNDLE_DOTNET"
+    mkdir -p "$APPDIR/usr/lib/pclfe/dotnet"
+    cp -f "$BUNDLE_DOTNET" "$APPDIR/usr/lib/pclfe/dotnet/$PCLFE_DOTNET_FILE"
+    chmod 644 "$APPDIR/usr/lib/pclfe/dotnet/$PCLFE_DOTNET_FILE"
+    dim "内置 .NET 4.8：$(human_size "$APPDIR/usr/lib/pclfe/dotnet/$PCLFE_DOTNET_FILE")"
+fi
+
 ln -sfn ../lib/pclfe/bin/pclfe "$APPDIR/usr/bin/pclfe"
 
 # AppRun：容器入口
@@ -163,7 +180,21 @@ cp -f "$APPDIR/pclfe.desktop" "$APPDIR/usr/share/applications/pclfe.desktop"
 
 chmod 755 "$APPDIR/usr/lib/pclfe/bin/pclfe" "$APPDIR/usr/lib/pclfe/lib/"*.sh
 
-OUT_FILE="$OUT_DIR/pclfe-$VERSION-$ARCH.AppImage"
+if [ -n "$BUNDLE_WINE" ]; then
+    if [ "$BUNDLE_WINE" = "auto" ]; then
+        BUNDLE_WINE=$(wine_vendor_fetch) || die "下载便携版 Wine 失败"
+    fi
+    [ -f "$BUNDLE_WINE" ] || die "Wine 压缩包不存在：$BUNDLE_WINE"
+    mkdir -p "$APPDIR/usr/lib/pclfe/vendor"
+    cp -f "$BUNDLE_WINE" "$APPDIR/usr/lib/pclfe/vendor/$(basename "$BUNDLE_WINE")"
+    chmod 644 "$APPDIR/usr/lib/pclfe/vendor/$(basename "$BUNDLE_WINE")"
+    dim "内置 Wine：$(human_size "$APPDIR/usr/lib/pclfe/vendor/$(basename "$BUNDLE_WINE")")"
+fi
+
+NAME_SUFFIX=''
+[ -n "$BUNDLE_DOTNET" ] && NAME_SUFFIX="${NAME_SUFFIX}-net"
+[ -n "$BUNDLE_WINE" ] && NAME_SUFFIX="${NAME_SUFFIX}-wine"
+OUT_FILE="$OUT_DIR/pclfe-$VERSION-$ARCH$NAME_SUFFIX.AppImage"
 rm -f "$OUT_FILE" "$OUT_FILE.sha256"
 
 # appimagetool 结束后会留下 AppDir 里的临时文件，构建完全部清掉

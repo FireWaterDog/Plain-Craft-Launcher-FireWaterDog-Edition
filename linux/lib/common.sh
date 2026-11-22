@@ -82,7 +82,134 @@ first_of() {
     return 1
 }
 
-wine_bin() { first_of wine wine64; }
+wine_bin() {
+    # 优先用安装包内置的便携版 Wine（发行版自带的常常过旧）
+    for _p in "$PCLFE_HOME/vendor/wine/bin/wine" \
+              "${PCLFE_PROGRAM_DIR:-}/vendor/wine/bin/wine"; do
+        [ -n "$_p" ] && [ -x "$_p" ] && { printf '%s\n' "$_p"; return 0; }
+    done
+    first_of wine wine64
+}
+
+# 内置 Wine 的 bin 目录（用于 PATH 前置），没有则输出空
+wine_vendor_bin() {
+    for _d in "$PCLFE_HOME/vendor/wine/bin" "${PCLFE_PROGRAM_DIR:-}/vendor/wine/bin"; do
+        [ -n "$_d" ] && [ -x "$_d/wine" ] && { printf '%s\n' "$_d"; return 0; }
+    done
+    return 1
+}
+
+# ---- .NET Framework 4.8 离线安装包（供打包内置） ----
+# 官方地址会 302 到 download.microsoft.com，文件名 NDP48-x86-x64-AllOS-ENU.exe
+PCLFE_DOTNET_URL="https://go.microsoft.com/fwlink/?linkid=2088631"
+PCLFE_DOTNET_FILE="ndp48-x86-x64-allos-enu.exe"
+
+# 缓存里的离线安装包路径（不存在时返回 1）
+dotnet_installer_cached() {
+    _p="$PCLFE_CACHE_DIR/$PCLFE_DOTNET_FILE"
+    [ -s "$_p" ] || return 1
+    printf '%s\n' "$_p"
+}
+
+# 下载到缓存（已存在则直接返回路径）
+dotnet_installer_fetch() {
+    _p=$(dotnet_installer_cached) && { printf '%s\n' "$_p"; return 0; }
+    deps_require_net
+    ensure_dirs
+    info "下载 .NET Framework 4.8 离线安装包（约 116 MB）"
+    download "$PCLFE_DOTNET_URL" "$PCLFE_CACHE_DIR/$PCLFE_DOTNET_FILE" 900 >&2 || return 1
+    printf '%s\n' "$PCLFE_CACHE_DIR/$PCLFE_DOTNET_FILE"
+}
+
+# ---- 便携版 Wine（Kron4ek 构建，wow64 模式可跑 32 位程序） ----
+PCLFE_WINE_VERSION="${PCLFE_WINE_VERSION:-11.22}"
+PCLFE_WINE_ASSET="wine-$PCLFE_WINE_VERSION-amd64-wow64"
+PCLFE_WINE_URL="https://github.com/Kron4ek/Wine-Builds/releases/download/$PCLFE_WINE_VERSION/$PCLFE_WINE_ASSET.tar.xz"
+
+wine_vendor_cached() {
+    _p="$PCLFE_CACHE_DIR/vendor/$PCLFE_WINE_ASSET.tar.xz"
+    [ -s "$_p" ] || return 1
+    printf '%s\n' "$_p"
+}
+
+wine_vendor_fetch() {
+    _p=$(wine_vendor_cached) && { printf '%s\n' "$_p"; return 0; }
+    deps_require_net
+    mkdir -p "$PCLFE_CACHE_DIR/vendor" 2>/dev/null || true
+    info "下载便携版 Wine $PCLFE_WINE_VERSION（约 94 MB）"
+    download "$PCLFE_WINE_URL" "$PCLFE_CACHE_DIR/vendor/$PCLFE_WINE_ASSET.tar.xz" 900 >&2 || return 1
+    printf '%s\n' "$PCLFE_CACHE_DIR/vendor/$PCLFE_WINE_ASSET.tar.xz"
+}
+
+# 解压到 <dest>/wine
+wine_vendor_extract() {
+    _dest=$1
+    _tar=$2
+    have tar || return 1
+    have xz || { err "需要 xz 解压 Wine：sudo apt install xz-utils"; return 1; }
+    _tmp="$PCLFE_CACHE_DIR/.wine-extract"
+    rm -rf "$_tmp"
+    mkdir -p "$_tmp" || return 1
+    tar xf "$_tar" -C "$_tmp" 2>/dev/null || { rm -rf "$_tmp"; return 1; }
+    _inner=$(find "$_tmp" -maxdepth 1 -mindepth 1 -type d | head -n 1)
+    [ -n "$_inner" ] || { rm -rf "$_tmp"; return 1; }
+    mkdir -p "$_dest" || { rm -rf "$_tmp"; return 1; }
+    rm -rf "$_dest/wine"
+    mv "$_inner" "$_dest/wine" || { rm -rf "$_tmp"; return 1; }
+    rm -rf "$_tmp"
+    # 精简：删掉开发头文件与手册，省 ~40 MB
+    rm -rf "$_dest/wine/include" "$_dest/wine/share/man" "$_dest/wine/share/doc" 2>/dev/null || true
+    return 0
+}
+
+# 是否随包带了 Wine 压缩包（尚未解压也算）
+wine_vendor_has_archive() {
+    for _d in "${PCLFE_PROGRAM_DIR:-}" "$PCLFE_HOME"; do
+        [ -n "$_d" ] || continue
+        [ -f "$_d/vendor/$PCLFE_WINE_ASSET.tar.xz" ] && return 0
+        for _f in "$_d"/vendor/wine-*.tar.xz; do
+            [ -f "$_f" ] && return 0
+        done
+    done
+    return 1
+}
+
+# 首次使用时把随包的 Wine 解压到数据目录
+wine_vendor_ensure() {
+    wine_vendor_bin >/dev/null 2>&1 && return 0
+    for _d in "${PCLFE_PROGRAM_DIR:-}" "$PCLFE_HOME"; do
+        [ -n "$_d" ] || continue
+        for _f in "$_d/vendor/$PCLFE_WINE_ASSET.tar.xz" "$_d"/vendor/wine-*.tar.xz; do
+            [ -f "$_f" ] || continue
+            step "解压内置 Wine（约 946 MB，首次需要 1~2 分钟）"
+            if wine_vendor_extract "$PCLFE_HOME/vendor" "$_f"; then
+                ok "内置 Wine 就绪：$("$PCLFE_HOME/vendor/wine/bin/wine" --version 2>/dev/null || echo wine)"
+                return 0
+            fi
+            err "解压内置 Wine 失败：$_f"
+            return 1
+        done
+    done
+    return 1
+}
+
+# 把内置 Wine 的 bin 放到 PATH 前面，保证 wineserver/wineboot 同源
+wine_prepare_path() {
+    _wd=$(wine_vendor_bin) || return 1
+    PATH="$_wd:$PATH"
+    export PATH
+    return 0
+}
+dotnet_installer_bundled() {
+    for _d in "$PCLFE_HOME/dotnet" "${PCLFE_PROGRAM_DIR:-}/dotnet" \
+              "${PCLFE_PROGRAM_DIR:-}/app/dotnet"; do
+        [ -n "$_d" ] && [ -d "$_d" ] || continue
+        for _f in "$_d"/*.exe; do
+            [ -f "$_f" ] && { printf '%s\n' "$_f"; return 0; }
+        done
+    done
+    return 1
+}
 
 # 形如 4.0 / 8.0.1 / 9.0（去掉 "wine-" 前缀）
 wine_version() {

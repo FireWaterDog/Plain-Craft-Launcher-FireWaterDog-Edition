@@ -140,6 +140,14 @@ prefix_install_components() {
         return 0
     fi
 
+    # 安装包里自带 .NET 离线安装包时直接用它，完全不联网
+    if [ -z "${PCLFE_DOTNET_INSTALLER:-}" ]; then
+        if _b=$(dotnet_installer_bundled); then
+            PCLFE_DOTNET_INSTALLER=$_b
+            dim "使用包内自带的 .NET 4.8 安装包：$_b"
+        fi
+    fi
+
     have winetricks || have curl || warn "未找到 winetricks 且没有 curl，可能无法准备组件"
 
     # Wine 太老时 .NET 4.8 基本装不上，先把话说在前面。

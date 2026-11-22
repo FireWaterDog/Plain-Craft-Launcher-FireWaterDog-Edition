@@ -119,6 +119,9 @@ runtime_ensure_local_copy() {
 PCLFE_BLOCK_REASON=''
 runtime_preflight() {
     PCLFE_BLOCK_REASON=''
+    # 随包带了 Wine 就先解压并前置到 PATH
+    wine_vendor_ensure >/dev/null 2>&1 || true
+    wine_prepare_path >/dev/null 2>&1 || true
     runtime_ensure_local_copy
     _exe=$(runtime_exe) || {
         PCLFE_BLOCK_REASON="尚未安装启动器本体（缺少 $PCLFE_EXE_NAME）。"

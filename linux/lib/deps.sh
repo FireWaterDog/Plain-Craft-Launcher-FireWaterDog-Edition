@@ -7,16 +7,22 @@ PCLFE_REQUIRED_CMDS="cabextract unzip"
 # 返回缺失的必要依赖，每行一个。wine / winetricks 单独处理（名称随发行版不同）。
 deps_missing() {
     _missing=''
+    _bundled_dotnet=''
+    dotnet_installer_bundled >/dev/null 2>&1 && _bundled_dotnet=1
 
-    if ! wine_bin >/dev/null 2>&1; then
+    # 内置了便携 Wine 时不再要求系统装 wine
+    if ! wine_bin >/dev/null 2>&1 && ! wine_vendor_has_archive; then
         _missing="$_missing wine"
     fi
-    if ! have winetricks; then
+    # 内置了 .NET 离线包时可以不用 winetricks（直装模式）
+    if ! have winetricks && [ -z "$_bundled_dotnet" ]; then
         _missing="$_missing winetricks"
     fi
-    for _c in $PCLFE_REQUIRED_CMDS; do
-        have "$_c" || _missing="$_missing $_c"
-    done
+    if have winetricks || [ -z "$_bundled_dotnet" ]; then
+        for _c in $PCLFE_REQUIRED_CMDS; do
+            have "$_c" || _missing="$_missing $_c"
+        done
+    fi
     if ! first_of curl wget >/dev/null 2>&1; then
         _missing="$_missing curl"
     fi
