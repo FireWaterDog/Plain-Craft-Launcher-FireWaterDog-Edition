@@ -21,7 +21,11 @@ prefix_create() {
     mkdir -p "$PCLFE_PREFIX_DIR"
     step "创建 64 位 Wine 前缀"
     _wine=$(wine_bin) || die "未找到 wine，请先安装"
-    WINEPREFIX="$PCLFE_PREFIX_DIR" WINEARCH=win64 WINEDEBUG=-all "$_wine" wineboot -u >/dev/null 2>&1 || {
+    # 禁用 mscoree/mshtml：避免 wineboot 弹「Wine Mono 安装器」去联网下载。
+    # 我们要装的是真正的 .NET Framework 4.8，Mono 反而会冲突。
+    WINEPREFIX="$PCLFE_PREFIX_DIR" WINEARCH=win64 WINEDEBUG=-all \
+    WINEDLLOVERRIDES="mscoree,mshtml=" \
+        "$_wine" wineboot -u >/dev/null 2>&1 || {
         err "创建 Wine 前缀失败；可用 'pclfe prefix reset' 清理后重试"
         return 1
     }
