@@ -40,13 +40,24 @@ diag_run() {
     if _wine=$(wine_bin); then
         _wver=$("$_wine" --version 2>/dev/null | tr -d '\r')
         _d_ok "wine：${_wver:-未知}"
+        _wmaj=$(wine_major 2>/dev/null || echo 0)
+        case "$_wmaj" in ''|*[!0-9]*) _wmaj=0 ;; esac
+        if [ "$_wmaj" -lt 6 ]; then
+            _d_warn "Wine 版本偏旧，.NET Framework 4.8 可能装不上"
+            _d_hint "建议 Wine ≥ 7：https://wiki.winehq.org/ 添加官方源升级"
+        fi
     else
         _d_bad "未安装 wine"
         _d_hint "参考 'pclfe setup' 输出的安装命令"
     fi
 
-    if have winetricks; then
-        _d_ok "winetricks：$(winetricks --version 2>/dev/null | head -n 1)"
+    if _wb=$(winetricks_bin 2>/dev/null); then
+        _d_ok "winetricks：$("$_wb" --version 2>/dev/null | head -n 1)"
+        if winetricks_has_dotnet48; then
+            _d_ok "winetricks 支持 dotnet48"
+        else
+            _d_warn "当前 winetricks 没有 dotnet48（版本过旧），setup 时会自动下载新版"
+        fi
     else
         _d_bad "未安装 winetricks（无法安装 .NET Framework 4.8）"
         _d_hint "参考 'pclfe setup' 输出的安装命令"

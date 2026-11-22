@@ -327,6 +327,34 @@ chmod +x pclfe-<版本>-x86_64.AppImage
 
 部分文件管理器（Nautilus 等）默认不允许运行可执行文件，需在「首选项 → 行为」里允许，或直接在终端 `./pclfe-*.AppImage`。缺 FUSE 时用 `--appimage-extract-and-run`。
 
+**`pclfe setup` 卡在 corefonts / andale32.exe 下载失败**
+
+旧版 winetricks 的字体下载源（`mirrors.kernel.org/gentoo`）早已 404。从 3.0.1.2 起默认**不再安装 corefonts**，并且逐项安装组件——只有 `dotnet48` 失败才算致命。确实需要 Arial 等字体时：
+
+```sh
+PCLFE_WINETRICKS_VERBS="win10 corefonts gdiplus vcrun2019 dotnet48" pclfe setup
+```
+
+**`pclfe setup` 提示 winetricks 版本过旧 / 没有 dotnet48**
+
+发行版自带的 winetricks 常年不更新（Debian 10 带的是 2018 版，连 `dotnet48` 这个 verb 都没有）。`pclfe setup` 会自动把最新版下载到 `~/.local/share/pclfe-linux/bin/winetricks` 并使用；也可以手动装：
+
+```sh
+mkdir -p ~/.local/bin
+curl -fsSL https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks -o ~/.local/bin/winetricks
+chmod +x ~/.local/bin/winetricks
+```
+
+**Wine 版本太旧**
+
+`.NET Framework 4.8` 需要较新的 Wine（建议 **≥ 7**；Wine 4.x 基本装不上）。检查：
+
+```sh
+wine --version
+```
+
+老发行版（Debian 10、Ubuntu 18.04 等）自带的 Wine 太旧，建议升级系统或改用 [WineHQ 官方源](https://wiki.winehq.org/) 安装新版。
+
 **`pclfe setup` 卡在 dotnet48 / 下载失败**
 
 `.NET Framework 4.8` 的安装包有 110 MB+，winetricks 直连微软 CDN 在国内经常超时。可以先用浏览器下好离线包，再喂给 `pclfe`：

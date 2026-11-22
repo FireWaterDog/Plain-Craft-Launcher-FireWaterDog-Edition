@@ -4,8 +4,12 @@
 
 # winetricks 组件：win10 设定 Windows 版本，dotnet48 是运行前提，
 # corefonts/gdiplus 保证界面字体与图标正常，vcrun2019 供部分原生组件使用。
-PCLFE_WINETRICKS_VERBS="${PCLFE_WINETRICKS_VERBS:-win10 corefonts gdiplus vcrun2019 dotnet48}"
+# 默认不装 corefonts：它依赖的几个下载源常年 404，且不影响启动器主体。
+# 需要时：export PCLFE_WINETRICKS_VERBS="win10 corefonts gdiplus vcrun2019 dotnet48"
+PCLFE_WINETRICKS_VERBS="${PCLFE_WINETRICKS_VERBS:-win10 gdiplus vcrun2019 dotnet48}"
 PCLFE_COMPONENTS_STAMP="$PCLFE_STATE_DIR/components.stamp"
+
+WINETRICKS_URLS="https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks https://cdn.jsdelivr.net/gh/Winetricks/winetricks@master/src/winetricks"
 
 prefix_exists() { [ -d "$PCLFE_PREFIX_DIR/drive_c" ]; }
 
@@ -63,6 +67,71 @@ wine32_hint() {
     return 1
 }
 
+# 发行版自带的 winetricks 常年不更新（例如 2018 版连 dotnet48 这个 verb 都没有），
+# 优先使用我们下载到数据目录的最新版。
+winetricks_bin() {
+    if [ -x "$PCLFE_HOME/bin/winetricks" ]; then
+        printf '%s\n' "$PCLFE_HOME/bin/winetricks"
+        return 0
+    fi
+    first_of winetricks
+}
+
+winetricks_has_dotnet48() {
+    _wb=$(winetricks_bin) || return 1
+    "$_wb" list-all 2>/dev/null | awk '{print $1}' | grep -qx 'dotnet48'
+}
+
+# 必要时下载最新 winetricks 到 $PCLFE_HOME/bin
+winetricks_ensure() {
+    if winetricks_has_dotnet48; then
+        return 0
+    fi
+    _wb=$(winetricks_bin) || true
+    [ -n "${_wb:-}" ] && warn "当前 winetricks（$("$_wb" --version 2>/dev/null | head -n 1)）缺少 dotnet48，改用最新版"
+
+    deps_require_net
+    mkdir -p "$PCLFE_HOME/bin" 2>/dev/null || true
+    for _u in $WINETRICKS_URLS; do
+        dim "下载 winetricks：$_u"
+        if download "$_u" "$PCLFE_HOME/bin/winetricks" 90 >&2; then
+            chmod +x "$PCLFE_HOME/bin/winetricks" 2>/dev/null || true
+            if winetricks_has_dotnet48; then
+                ok "已安装 winetricks（$("$PCLFE_HOME/bin/winetricks" --version 2>/dev/null | head -n 1)）"
+                return 0
+            fi
+        fi
+    done
+    return 1
+}
+
+# 直接运行 .NET 4.8 离线安装包（不依赖 winetricks）。
+# 适用于：发行版自带 winetricks 过旧且无法联网升级。
+prefix_install_dotnet_direct() {
+    _installer=$1
+    [ -f "$_installer" ] || return 1
+    _wine=$(wine_bin) || return 1
+
+    step "直接运行 .NET 4.8 安装包（绕过 winetricks）"
+    dim "安装包：$_installer"
+    dim "无窗口安装，通常需要 3~10 分钟，请勿中断。"
+
+    WINEPREFIX="$PCLFE_PREFIX_DIR" WINEARCH=win64 \
+    WINEDLLOVERRIDES="mscoree,mshtml=" \
+        "$_wine" "$_installer" /q /norestart >/dev/null 2>&1 || true
+
+    # 等 wine 后台进程把注册表写完
+    WINEPREFIX="$PCLFE_PREFIX_DIR" "$_wine" wineserver -w >/dev/null 2>&1 || true
+
+    if dotnet48_installed; then
+        date '+%Y-%m-%d %H:%M:%S' > "$PCLFE_COMPONENTS_STAMP"
+        ok ".NET Framework 4.8 安装完成（直装模式）"
+        return 0
+    fi
+    err "直装 .NET 4.8 未成功"
+    return 1
+}
+
 prefix_install_components() {
     prefix_create || return 1
 
@@ -71,8 +140,28 @@ prefix_install_components() {
         return 0
     fi
 
-    have winetricks || die "未找到 winetricks，无法安装 .NET Framework 4.8"
+    have winetricks || have curl || warn "未找到 winetricks 且没有 curl，可能无法准备组件"
+
+    # Wine 太老时 .NET 4.8 基本装不上，先把话说在前面。
+    _wmaj=$(wine_major 2>/dev/null || echo 0)
+    case "$_wmaj" in
+        ''|*[!0-9]*) _wmaj=0 ;;
+    esac
+    if [ "$_wmaj" -lt 6 ]; then
+        warn "Wine 版本偏旧（$(wine_version 2>/dev/null)），.NET Framework 4.8 很可能装不上"
+        dim "建议 Wine ≥ 7：Debian/Ubuntu 可用 https://wiki.winehq.org/ 的官方源升级"
+    fi
+
     wine32_hint || true
+
+    if ! winetricks_ensure; then
+        if [ -n "${PCLFE_DOTNET_INSTALLER:-}" ] && [ -f "$PCLFE_DOTNET_INSTALLER" ]; then
+            warn "无法准备支持 dotnet48 的 winetricks，改用直装模式"
+            prefix_install_dotnet_direct "$PCLFE_DOTNET_INSTALLER" || return 1
+            return 0
+        fi
+        die "无法准备支持 dotnet48 的 winetricks；可用 --dotnet-installer=<离线包> 走直装模式"
+    fi
 
     # 允许喂本地离线安装包：winetricks 会优先用缓存，省掉它自己的慢速下载。
     if [ -n "${PCLFE_DOTNET_INSTALLER:-}" ]; then
@@ -95,38 +184,62 @@ prefix_install_components() {
         fi
     fi
 
-    step "安装 Wine 组件（首次约 10~30 分钟，dotnet48 需要联网下载）"
+    _wt=$(winetricks_bin) || die "未找到 winetricks"
+    step "安装 Wine 组件（首次约 10~30 分钟）"
     dim "组件：$PCLFE_WINETRICKS_VERBS"
-    dim "如果长时间停在 'Executing w_do_call dotnet48'，多半是下载慢，可换网络后重试。"
     dim "详细输出会同时写入：$PCLFE_LOG_DIR/setup-*.log"
 
     _setup_log="$PCLFE_LOG_DIR/setup-$(timestamp).log"
     _status="$PCLFE_CACHE_DIR/.setup-status"
-    {
-        # winetricks 需要知道自己操作哪个 prefix。
-        # shellcheck disable=SC2086
-        WINEPREFIX="$PCLFE_PREFIX_DIR" WINEARCH=win64 \
-        WINEDLLOVERRIDES="mscoree,mshtml=" W_OPT_UNATTENDED=1 \
-            winetricks -q $PCLFE_WINETRICKS_VERBS 2>&1
-        printf '%s' "$?" > "$_status"
-    } | tee "$_setup_log"
+    _dotnet_ok=0
 
-    if [ "$(cat "$_status" 2>/dev/null || echo 1)" != "0" ]; then
-        err "winetricks 安装组件失败（日志：$_setup_log）"
-        wine32_hint || true
-        dim "其他常见原因：无法访问 download.visualstudio.microsoft.com（可换网络/代理后重试）"
-        dim "可尝试：pclfe prefix reset 后重跑 'pclfe setup'"
-        return 1
-    fi
+    # 逐项安装：只有 dotnet48 失败才致命，其余（字体、运行库）失败只警告，
+    # 免得一个 404 的字体源把整条链带崩。
+    for _verb in $PCLFE_WINETRICKS_VERBS; do
+        log ""
+        step "组件 $_verb"
+        {
+            # shellcheck disable=SC2086
+            WINEPREFIX="$PCLFE_PREFIX_DIR" WINEARCH=win64 \
+            WINEDLLOVERRIDES="mscoree,mshtml=" W_OPT_UNATTENDED=1 \
+                "$_wt" -q "$_verb" 2>&1
+            printf '%s' "$?" > "$_status"
+        } | tee -a "$_setup_log"
+
+        _rc=$(cat "$_status" 2>/dev/null || echo 1)
+        if [ "$_rc" != "0" ]; then
+            case "$_verb" in
+                dotnet48)
+                    err "dotnet48 安装失败"
+                    dim "日志：$_setup_log"
+                    ;;
+                *)
+                    warn "$_verb 安装失败（非致命，继续）"
+                    ;;
+            esac
+        fi
+        [ "$_verb" = "dotnet48" ] && [ "$_rc" = "0" ] && _dotnet_ok=1
+    done
 
     if dotnet48_installed; then
         date '+%Y-%m-%d %H:%M:%S' > "$PCLFE_COMPONENTS_STAMP"
         ok ".NET Framework 4.8 安装完成"
-    else
-        warn "组件已执行完毕，但未检测到 .NET Framework 4.8；启动器可能无法运行"
-        dim "日志：$_setup_log"
-        return 1
+        return 0
     fi
+
+    # winetricks 没搞定，但有离线包时再试一次直装
+    if [ -n "${PCLFE_DOTNET_INSTALLER:-}" ] && [ -f "$PCLFE_DOTNET_INSTALLER" ]; then
+        warn "winetricks 未能装上 .NET 4.8，尝试直装模式"
+        if prefix_install_dotnet_direct "$PCLFE_DOTNET_INSTALLER"; then
+            return 0
+        fi
+    fi
+
+    err "未检测到 .NET Framework 4.8，启动器无法运行"
+    wine32_hint || true
+    dim "日志：$_setup_log"
+    dim "常见原因：Wine 版本过旧、缺 32 位支持、或无法访问微软下载服务器"
+    return 1
 }
 
 # 注册表微调：DPI 缩放、崩溃对话框、浏览器委派（正版登录的设备码流程会打开系统浏览器）。

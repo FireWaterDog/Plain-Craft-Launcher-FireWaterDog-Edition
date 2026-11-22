@@ -84,6 +84,19 @@ first_of() {
 
 wine_bin() { first_of wine wine64; }
 
+# 形如 4.0 / 8.0.1 / 9.0（去掉 "wine-" 前缀）
+wine_version() {
+    _w=$(wine_bin) || return 1
+    _v=$("$_w" --version 2>/dev/null | tr -d '\r' | sed 's/^wine-//' | head -n 1)
+    [ -n "$_v" ] || return 1
+    printf '%s\n' "$_v"
+}
+
+wine_major() {
+    _v=$(wine_version) || return 1
+    printf '%s\n' "${_v%%.*}"
+}
+
 wine_arch() {
     case "$(uname -m)" in
         x86_64|amd64) printf 'x86_64\n' ;;
