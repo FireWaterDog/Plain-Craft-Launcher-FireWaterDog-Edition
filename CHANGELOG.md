@@ -46,6 +46,14 @@
   - 启动器运行中异常退出时同样弹窗并给出日志路径。
 - `.deb` 的 `Recommends` 增加 `zenity | kdialog`；用户级安装的 `.desktop` 为 `Exec` 路径加引号，安装目录含空格时也能启动。
 
+### 全家桶包（内置运行时）
+
+- 打包脚本新增 `--with-dotnet`（.NET Framework 4.8 离线安装包）与 `--with-wine`（Kron4ek 便携 Wine 11.x，wow64 构建）。
+- 产物体积：约 212 MB（deb）／213 MB（tar.gz），装完 **完全离线**，不依赖系统 Wine 与联网下载。
+- 首次 `pclfe setup` 自动解压内置 Wine（约 950 MB，1~2 分钟），并优先使用它（`wine_bin` 会返回内置路径，PATH 前置保证 wineserver 同源）。
+- 依赖检查放宽：有内置 Wine 时不再要求系统装 wine；有内置 .NET 时不再要求 winetricks（走直装模式）。
+- 版本号用 `+dotnet` / `+wine` 后缀区分，`dpkg -l` 能直接看出来。
+
 ### 已知限制
 
 - 仅支持 x86_64；ARM64 无法运行 Wine 与 .NET Framework 4.8。

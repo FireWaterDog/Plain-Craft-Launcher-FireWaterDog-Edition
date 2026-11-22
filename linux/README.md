@@ -34,9 +34,13 @@ Linux 版提供四种落地方式，按习惯挑一种即可：
 | 形式 | 适用 | 大小 | 特点 |
 | --- | --- | --- | --- |
 | `pclfe_<版本>_all.deb` | Debian / Ubuntu / Deepin / UOS | 约 2.6 MB | 系统级安装，进应用菜单，`apt remove` 卸载 |
+| `pclfe_<版本>+dotnet+wine_all.deb` | 同上，**完全离线** | 约 212 MB | 内置启动器 + .NET 4.8 + 便携 Wine，装完不联网就能跑 |
 | `pclfe-<版本>-x86_64.AppImage` | 任意发行版 | 约 3 MB | 单文件免安装，双击即用，不写系统目录 |
+| `pclfe-linux-<版本>-offline-net-wine.tar.gz` | 任意发行版 | 约 213 MB | 同上，压缩包形式的全家桶 |
 | `pclfe-linux-<版本>-offline.tar.gz` | 任意发行版 | 约 3 MB | 解压装到用户目录，内置启动器 |
 | `pclfe-linux-<版本>.tar.gz` | 任意发行版 | 约 70 KB | 同上，但需 `pclfe update` 下载启动器 |
+
+**全家桶包（`+dotnet+wine`）适合谁**：不想折腾 Wine、系统自带的 Wine 太旧、或者目标机器不能联网。安装后首次 `pclfe setup` 会解压内置的 Wine（约 950 MB，1~2 分钟），之后完全离线。
 
 ### Debian / Ubuntu（.deb，推荐）
 
