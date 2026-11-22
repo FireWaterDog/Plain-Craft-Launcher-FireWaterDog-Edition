@@ -54,6 +54,8 @@ prefix_components_ready() {
 
 # dotnet48 的安装器是 32 位程序；只有 64 位 Wine 时基本装不上。
 wine32_hint() {
+    # 内置的 wow64 版 Wine 自带 32 位支持，无需系统 i386
+    wine_vendor_bin >/dev/null 2>&1 && return 0
     case "$(uname -m)" in
         x86_64) ;;
         *) return 0 ;;

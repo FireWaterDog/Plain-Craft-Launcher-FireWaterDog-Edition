@@ -14,6 +14,10 @@ diag_run() {
     DIAG_FATAL=0
     DIAG_WARN=0
 
+    # 随包带了 Wine 时先解压，后面的检查才看得到真实版本
+    wine_vendor_ensure >/dev/null 2>&1 || true
+    wine_prepare_path >/dev/null 2>&1 || true
+
     log "${C_CYAN}PCLFE Linux Edition 环境自检${C_RESET}"
     log "$(date '+%Y-%m-%d %H:%M:%S')"
     log ""
@@ -40,11 +44,15 @@ diag_run() {
     if _wine=$(wine_bin); then
         _wver=$("$_wine" --version 2>/dev/null | tr -d '\r')
         _d_ok "wine：${_wver:-未知}"
-        _wmaj=$(wine_major 2>/dev/null || echo 0)
-        case "$_wmaj" in ''|*[!0-9]*) _wmaj=0 ;; esac
-        if [ "$_wmaj" -lt 6 ]; then
-            _d_warn "Wine 版本偏旧，.NET Framework 4.8 可能装不上"
-            _d_hint "建议 Wine ≥ 7：https://wiki.winehq.org/ 添加官方源升级"
+        if wine_vendor_bin >/dev/null 2>&1; then
+            _d_ok "使用内置 Wine（$(wine_vendor_bin)）"
+        else
+            _wmaj=$(wine_major 2>/dev/null || echo 0)
+            case "$_wmaj" in ''|*[!0-9]*) _wmaj=0 ;; esac
+            if [ "$_wmaj" -lt 6 ]; then
+                _d_warn "Wine 版本偏旧，.NET Framework 4.8 可能装不上"
+                _d_hint "建议 Wine ≥ 7：https://wiki.winehq.org/ 添加官方源升级"
+            fi
         fi
     else
         _d_bad "未安装 wine"
@@ -58,12 +66,14 @@ diag_run() {
         else
             _d_warn "当前 winetricks 没有 dotnet48（版本过旧），setup 时会自动下载新版"
         fi
+    elif dotnet_installer_bundled >/dev/null 2>&1; then
+        _d_ok "未安装 winetricks（包内自带 .NET 离线安装包，可直装）"
     else
         _d_bad "未安装 winetricks（无法安装 .NET Framework 4.8）"
         _d_hint "参考 'pclfe setup' 输出的安装命令"
     fi
 
-    if [ "$(uname -m)" = "x86_64" ]; then
+    if [ "$(uname -m)" = "x86_64" ] && ! wine_vendor_bin >/dev/null 2>&1; then
         _w32=''
         for _d in /usr/lib/wine/i386-unix /usr/lib/i386-linux-gnu/wine /usr/lib32/wine; do
             [ -d "$_d" ] && { _w32=1; break; }
