@@ -49,6 +49,20 @@ diag_run() {
         _d_ok "winetricks：$(winetricks --version 2>/dev/null | head -n 1)"
     else
         _d_bad "未安装 winetricks（无法安装 .NET Framework 4.8）"
+        _d_hint "参考 'pclfe setup' 输出的安装命令"
+    fi
+
+    if [ "$(uname -m)" = "x86_64" ]; then
+        _w32=''
+        for _d in /usr/lib/wine/i386-unix /usr/lib/i386-linux-gnu/wine /usr/lib32/wine; do
+            [ -d "$_d" ] && { _w32=1; break; }
+        done
+        if [ -n "$_w32" ]; then
+            _d_ok "32 位 Wine：可用（安装 .NET 4.8 必需）"
+        else
+            _d_warn "未检测到 32 位 Wine，.NET 4.8 很可能装不上"
+            _d_hint "sudo dpkg --add-architecture i386 && sudo apt update && sudo apt install wine32:i386"
+        fi
     fi
 
     if prefix_exists; then

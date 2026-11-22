@@ -142,8 +142,11 @@ runtime_preflight() {
         return 1
     fi
     if ! dotnet48_installed; then
-        warn ".NET Framework 4.8 未检测到，启动可能失败"
-        dim "可执行：pclfe setup"
+        # PCL2 是 .NET 4.8 程序，缺了必然崩（wine 退出码 255），直接拦住并说清楚。
+        PCLFE_BLOCK_REASON='Wine 前缀里没有 .NET Framework 4.8。'
+        err ".NET Framework 4.8 未安装，启动器无法运行（会以 255 退出）"
+        dim "请先执行：pclfe setup（首次约 10~30 分钟）"
+        return 1
     fi
     return 0
 }
@@ -180,8 +183,15 @@ runtime_run() {
         ok "启动器已退出（日志：$_log）"
     else
         err "启动器异常退出，退出码 $_code"
-        dim "查看日志最后 40 行："
-        tail -n 40 "$_log" | sed 's/^/    /'
+        if [ -s "$_log" ]; then
+            dim "查看日志最后 40 行："
+            tail -n 40 "$_log" | sed 's/^/    /'
+        else
+            # WINEDEBUG=-all 会把 wine 的报错一起静音，这里给出复现命令。
+            warn "日志是空的：Wine 的报错被 WINEDEBUG=-all 静音了"
+            dim "复现并抓日志：PCLFE_WINEDEBUG=warn+all,pclfe pclfe run"
+            dim "最常见原因：.NET Framework 4.8 未装好（pclfe setup）或 Wine 缺 32 位支持"
+        fi
         dim "更多排查：pclfe doctor"
     fi
     return "$_code"

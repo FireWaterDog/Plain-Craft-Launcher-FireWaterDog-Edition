@@ -48,6 +48,21 @@ prefix_components_ready() {
     [ -r "$PCLFE_COMPONENTS_STAMP" ] && dotnet48_installed
 }
 
+# dotnet48 的安装器是 32 位程序；只有 64 位 Wine 时基本装不上。
+wine32_hint() {
+    case "$(uname -m)" in
+        x86_64) ;;
+        *) return 0 ;;
+    esac
+    for _d in /usr/lib/wine/i386-unix /usr/lib/i386-linux-gnu/wine /usr/lib32/wine; do
+        [ -d "$_d" ] && return 0
+    done
+    warn "未检测到 32 位 Wine；.NET 4.8 的安装器是 32 位程序，很可能失败"
+    dim "Debian/Ubuntu：sudo dpkg --add-architecture i386 && sudo apt update && sudo apt install -y wine32:i386"
+    dim "Fedora：sudo dnf install wine-core.i686"
+    return 1
+}
+
 prefix_install_components() {
     prefix_create || return 1
 
@@ -57,27 +72,38 @@ prefix_install_components() {
     fi
 
     have winetricks || die "未找到 winetricks，无法安装 .NET Framework 4.8"
+    wine32_hint || true
 
     step "安装 Wine 组件（首次约 10~30 分钟，dotnet48 需要联网下载）"
     dim "组件：$PCLFE_WINETRICKS_VERBS"
-    dim "如果长时间停在 'Executing w_do_call dotnet48'，多半是下载慢，可换网络或镜像后重试。"
+    dim "如果长时间停在 'Executing w_do_call dotnet48'，多半是下载慢，可换网络后重试。"
+    dim "详细输出会同时写入：$PCLFE_LOG_DIR/setup-*.log"
 
-    # winetricks 需要知道自己操作哪个 prefix。
-    # shellcheck disable=SC2086
-    WINEPREFIX="$PCLFE_PREFIX_DIR" WINEARCH=win64 \
-    WINEDLLOVERRIDES="mscoree,mshtml=" W_OPT_UNATTENDED=1 \
-        winetricks -q $PCLFE_WINETRICKS_VERBS || {
-        err "winetricks 安装组件失败"
-        dim "常见原因：缺少 32 位库（如 lib32z1、lib32ncurses6）、无法访问 download.visualstudio.microsoft.com。"
-        dim "可尝试：pclfe prefix reset 后重跑 'pclfe setup'，或先 export PCLFE_WINETRICKS_VERBS=\"win10 corefonts\" 再手动补 dotnet48。"
+    _setup_log="$PCLFE_LOG_DIR/setup-$(timestamp).log"
+    _status="$PCLFE_CACHE_DIR/.setup-status"
+    {
+        # winetricks 需要知道自己操作哪个 prefix。
+        # shellcheck disable=SC2086
+        WINEPREFIX="$PCLFE_PREFIX_DIR" WINEARCH=win64 \
+        WINEDLLOVERRIDES="mscoree,mshtml=" W_OPT_UNATTENDED=1 \
+            winetricks -q $PCLFE_WINETRICKS_VERBS 2>&1
+        printf '%s' "$?" > "$_status"
+    } | tee "$_setup_log"
+
+    if [ "$(cat "$_status" 2>/dev/null || echo 1)" != "0" ]; then
+        err "winetricks 安装组件失败（日志：$_setup_log）"
+        wine32_hint || true
+        dim "其他常见原因：无法访问 download.visualstudio.microsoft.com（可换网络/代理后重试）"
+        dim "可尝试：pclfe prefix reset 后重跑 'pclfe setup'"
         return 1
-    }
+    fi
 
     if dotnet48_installed; then
         date '+%Y-%m-%d %H:%M:%S' > "$PCLFE_COMPONENTS_STAMP"
         ok ".NET Framework 4.8 安装完成"
     else
         warn "组件已执行完毕，但未检测到 .NET Framework 4.8；启动器可能无法运行"
+        dim "日志：$_setup_log"
         return 1
     fi
 }
